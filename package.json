@@ -1,0 +1,22 @@
+{
+  "name": "lezgimez",
+  "version": "2.0.3",
+  "description": "Lezgian language learning PWA",
+  "main": "sw.js",
+  "scripts": {
+    "build": "tailwindcss -i input.css -o output.css --minify",
+    "dev": "tailwindcss -i input.css -o output.css --watch",
+    "validate": "node scripts/validate-words.js",
+    "test": "node test.js && npm run validate"
+  },
+  "keywords": [
+    "lezgi",
+    "pwa",
+    "learning"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}
