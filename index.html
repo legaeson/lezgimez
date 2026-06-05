@@ -8,7 +8,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#059669">
-    <meta name="description" content="LezgiMez — бесплатное приложение для изучения лезгинского языка. Словарь 2900+ слов, интервальное повторение (SRS), грамматика, тесты и карточки. Офлайн-режим.">
+    <meta name="description"
+        content="LezgiMez — бесплатное приложение для изучения лезгинского языка. Словарь 2900+ слов, интервальное повторение (SRS), грамматика, тесты и карточки. Офлайн-режим.">
     <title>LezgiMez — Изучение лезгинского языка</title>
 
     <!-- PWA -->
@@ -922,13 +923,7 @@
     </style>
 </head>
 
-<body class="bg-slate-50 text-slate-800 loading md:pl-[160px] md:overflow-y-auto md:h-auto">
-    <!-- Загрузочный экран -->
-    <div id="app-loader">
-        <div class="loader-logo">LezgiMez <span class="text-emerald-500">α</span></div>
-        <div class="loader-spinner"></div>
-    </div>
-
+<body class="bg-slate-50 text-slate-800 md:pl-[160px] md:overflow-y-auto md:h-auto">
 
 
     <!-- Top Header -->
@@ -1404,7 +1399,7 @@
             </div>
 
             <div class="text-center mt-8 text-xs text-slate-400">
-                ЧIал уьхуьн на уьлуьк тухун патал кIанивилелди авунва<br>
+                чӏал уьхуьн на уьлуьк тхун патал кенивелийз уна<br>
             </div>
         </div>
 
@@ -2051,7 +2046,7 @@
                 console.warn('[Lezgin] Could not load words.json, using demo words', e);
 
                 // Demo fallback
-                WORDS = DEMO_WORDS.map(w => ({...w}));
+                WORDS = DEMO_WORDS.map(w => ({ ...w }));
 
                 console.log("[Lezgin] In demo mode. words.json failed to load or is empty.");
                 // Show info banner in vocabulary screen
@@ -2078,16 +2073,6 @@
             renderAlphabet();
             renderWords();
             initSearchBehavior();
-            hideLoader();
-        }
-
-        // Скрываем лоадер
-        function hideLoader() {
-            const loader = document.getElementById('app-loader');
-            if (loader && !loader.classList.contains('fade-out')) {
-                loader.classList.add('fade-out');
-                document.body.classList.remove('loading');
-            }
         }
 
         function buildCategoryOptions() {
@@ -4474,7 +4459,7 @@
 
                 // Handle missing words/grammar gracefully (e.g. if skipped early or failed)
                 if (!WORDS || WORDS.length === 0) {
-                    WORDS = DEMO_WORDS.map(w => ({...w}));
+                    WORDS = DEMO_WORDS.map(w => ({ ...w }));
                     const loadingEl = document.getElementById('words-loading');
                     if (loadingEl) {
                         loadingEl.style.display = 'none';
