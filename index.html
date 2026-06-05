@@ -8,7 +8,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#059669">
-    <title>LezgiMez </title>
+    <meta name="description" content="LezgiMez — бесплатное приложение для изучения лезгинского языка. Словарь 2900+ слов, интервальное повторение (SRS), грамматика, тесты и карточки. Офлайн-режим.">
+    <title>LezgiMez — Изучение лезгинского языка</title>
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -22,7 +23,7 @@
     <meta property="og:image" content="./icons/icon.svg">
 
     <link rel="stylesheet" href="output.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="fa/all.min.css">
     <style>
         /* ========== АНИМАЦИИ ========== */
 
@@ -1293,7 +1294,7 @@
                                 <i class="fa-solid fa-globe w-5 text-emerald-600"></i>
                                 <span>Версия приложения</span>
                             </div>
-                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.0.3</span>
+                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.0.4</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-t mt-3 pt-3 border-slate-100">
                             <div class="flex items-center gap-x-3">
@@ -1538,7 +1539,7 @@
         let tabSwitchGuard = false;
 
         const NICE_CATEGORY_NAMES = {
-            'быт': 'Быт', 'война': 'Война', 'время': 'Время', 'глаголы': 'Глаголы',
+            'анатомия': 'Анатомия', 'быт': 'Быт', 'война': 'Война', 'время': 'Время', 'глаголы': 'Глаголы',
             'еда': 'Еда', 'животные': 'Животные', 'здоровье': 'Здоровье', 'искусство': 'Искусство',
             'качество': 'Качество', 'люди': 'Люди', 'материалы': 'Материалы', 'мера': 'Мера',
             'места': 'Места', 'местоим.': 'Местоимения', 'наречия': 'Наречия', 'обучение': 'Обучение',
@@ -2049,24 +2050,8 @@
             } catch (e) {
                 console.warn('[Lezgin] Could not load words.json, using demo words', e);
 
-                // Demo fallback (15 words)
-                WORDS = [
-                    { id: 'w0', lz: 'Саламалейкум', ru: 'Здравствуйте', cat: 'фразы', ipa: '', ex: '' },
-                    { id: 'w1', lz: 'Пакаман хийир', ru: 'Доброе утро', cat: 'фразы', ipa: '', ex: '' },
-                    { id: 'w2', lz: 'Буба', ru: 'Отец', cat: 'семья', ipa: '', ex: '' },
-                    { id: 'w3', lz: 'Диде', ru: 'Мать', cat: 'семья', ipa: '', ex: '' },
-                    { id: 'w4', lz: 'Фу', ru: 'Хлеб', cat: 'еда', ipa: '', ex: '' },
-                    { id: 'w5', lz: 'Яд', ru: 'Вода', cat: 'природа', ipa: '', ex: '' },
-                    { id: 'w6', lz: 'Сад', ru: 'Один', cat: 'числа', ipa: '', ex: '' },
-                    { id: 'w7', lz: 'Зун', ru: 'Я', cat: 'местоим.', ipa: '', ex: '' },
-                    { id: 'w8', lz: 'Вун', ru: 'Ты', cat: 'местоим.', ipa: '', ex: '' },
-                    { id: 'w9', lz: 'Рагъ', ru: 'Солнце', cat: 'природа', ipa: '', ex: '' },
-                    { id: 'w10', lz: 'КицI', ru: 'Собака', cat: 'животные', ipa: '', ex: '' },
-                    { id: 'w11', lz: 'Къуш', ru: 'Птица', cat: 'природа', ipa: '', ex: '' },
-                    { id: 'w12', lz: 'ЧIал', ru: 'Язык', cat: 'обучение', ipa: '', ex: '' },
-                    { id: 'w13', lz: 'Хъсан', ru: 'Хороший', cat: 'качество', ipa: '', ex: '' },
-                    { id: 'w14', lz: 'Гзаф', ru: 'Много', cat: 'числа', ipa: '', ex: '' }
-                ];
+                // Demo fallback
+                WORDS = DEMO_WORDS.map(w => ({...w}));
 
                 console.log("[Lezgin] In demo mode. words.json failed to load or is empty.");
                 // Show info banner in vocabulary screen
@@ -3849,6 +3834,21 @@
                         b.classList.add('!border-emerald-500', '!bg-emerald-50', 'text-emerald-700');
                     }
                 });
+
+                // Track error in SRS
+                const word = practiceState.words[practiceState.idx];
+                if (!PROGRESS.srs[word.id]) {
+                    PROGRESS.srs[word.id] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0 };
+                }
+                let srs = PROGRESS.srs[word.id];
+                srs.errors++;
+                srs.success = 0;
+                srs.ivl = Math.max(0, Math.round(srs.ivl * 0.5));
+                srs.last = Date.now();
+                srs.next = srs.last + (srs.ivl * 86400000);
+
+                const learnedIdx = PROGRESS.learned.indexOf(word.id);
+                if (learnedIdx > -1) PROGRESS.learned.splice(learnedIdx, 1);
             }
 
             setTimeout(() => {
@@ -4335,18 +4335,27 @@
         }
 
         function initTheme() {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-            applyTheme(prefersDark.matches ? 'dark' : 'light');
+            const saved = localStorage.getItem('lezgi_theme');
+            if (saved) {
+                applyTheme(saved);
+            } else {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+                applyTheme(prefersDark.matches ? 'dark' : 'light');
+            }
 
-            prefersDark.addEventListener('change', (e) => {
-                applyTheme(e.matches ? 'dark' : 'light');
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                if (!localStorage.getItem('lezgi_theme')) {
+                    applyTheme(e.matches ? 'dark' : 'light');
+                }
             });
         }
 
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.getAttribute('data-theme') === 'dark';
-            html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('lezgi_theme', newTheme);
             updateThemeUI();
         }
 
@@ -4465,23 +4474,7 @@
 
                 // Handle missing words/grammar gracefully (e.g. if skipped early or failed)
                 if (!WORDS || WORDS.length === 0) {
-                    WORDS = [
-                        { id: 'w0', lz: 'Саламалейкум', ru: 'Здравствуйте', cat: 'фразы', ipa: '', ex: '' },
-                        { id: 'w1', lz: 'Пакаман хийир', ru: 'Доброе утро', cat: 'фразы', ipa: '', ex: '' },
-                        { id: 'w2', lz: 'Буба', ru: 'Отец', cat: 'семья', ipa: '', ex: '' },
-                        { id: 'w3', lz: 'Диде', ru: 'Мать', cat: 'семья', ipa: '', ex: '' },
-                        { id: 'w4', lz: 'Фу', ru: 'Хлеб', cat: 'еда', ipa: '', ex: '' },
-                        { id: 'w5', lz: 'Яд', ru: 'Вода', cat: 'природа', ipa: '', ex: '' },
-                        { id: 'w6', lz: 'Сад', ru: 'Один', cat: 'числа', ipa: '', ex: '' },
-                        { id: 'w7', lz: 'Зун', ru: 'Я', cat: 'местоим.', ipa: '', ex: '' },
-                        { id: 'w8', lz: 'Вун', ru: 'Ты', cat: 'местоим.', ipa: '', ex: '' },
-                        { id: 'w9', lz: 'Рагъ', ru: 'Солнце', cat: 'природа', ipa: '', ex: '' },
-                        { id: 'w10', lz: 'КицI', ru: 'Собака', cat: 'животные', ipa: '', ex: '' },
-                        { id: 'w11', lz: 'Къуш', ru: 'Птица', cat: 'природа', ipa: '', ex: '' },
-                        { id: 'w12', lz: 'ЧIал', ru: 'Язык', cat: 'обучение', ipa: '', ex: '' },
-                        { id: 'w13', lz: 'Хъсан', ru: 'Хороший', cat: 'качество', ipa: '', ex: '' },
-                        { id: 'w14', lz: 'Гзаф', ru: 'Много', cat: 'числа', ipa: '', ex: '' }
-                    ];
+                    WORDS = DEMO_WORDS.map(w => ({...w}));
                     const loadingEl = document.getElementById('words-loading');
                     if (loadingEl) {
                         loadingEl.style.display = 'none';

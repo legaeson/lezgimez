@@ -36,10 +36,24 @@ jobs:
       - name: Build Tailwind CSS
         run: npm run build
 
+      - name: Prepare production build
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          cp output.css dist/
+          cp sw.js dist/
+          cp words.json dist/
+          cp grammar.json dist/
+          cp manifest.json dist/
+          cp CNAME dist/
+          cp -r icons dist/
+          cp -r fa dist/
+          cp -r audio dist/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: 'dist'
 
       - name: Deploy to GitHub Pages
         id: deployment

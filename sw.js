@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lezgin-pwa-v44'; // Согласованность темных фонов теории и практики
+const CACHE_NAME = 'lezgin-pwa-v45'; // Согласованность темных фонов теории и практики
 const CRITICAL_ASSETS = [
   './',
   './index.html',
