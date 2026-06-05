@@ -1382,7 +1382,7 @@
                         <p class="text-slate-600 text-sm mb-3">Нашли ошибку или хотите предложить улучшение? Напишите
                             напрямую.</p>
                         <a href="https://t.me/legaeson" target="_blank" rel="noopener noreferrer"
-                            class="flex justify-between items-center py-2 px-3 rounded-2xl bg-slate-50 active:bg-slate-100 mb-2">
+                            class="flex justify-between items-center py-2 px-3 rounded-2xl bg-slate-50 active:bg-slate-100">
                             <div class="flex items-center gap-x-3">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" class="w-5 h-5"
                                     fill="#0ea5e9">
@@ -1393,13 +1393,6 @@
                             </div>
                             <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-400"></i>
                         </a>
-                        <button id="open-issue-btn" class="w-full flex justify-between items-center py-2 px-3 rounded-2xl bg-emerald-50 text-emerald-700 active:bg-emerald-100 transition-colors">
-                            <div class="flex items-center gap-x-3">
-                                <i class="fa-solid fa-paper-plane w-5 text-center"></i>
-                                <span class="font-medium text-sm">Отправить сообщение анонимно</span>
-                            </div>
-                            <i class="fa-solid fa-chevron-right text-xs text-emerald-500"></i>
-                        </button>
                     </div>
 
                     <button id="add-to-home-btn"
@@ -1462,23 +1455,6 @@
         aria-modal="true">
         <div class="w-full h-full overflow-hidden flex flex-col">
             <div id="practice-content" class="flex-1 overflow-auto"></div>
-        </div>
-    </div>
-
-    <!-- Issue Modal -->
-    <div id="issue-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-        <div class="modal bg-white w-full max-w-md rounded-3xl overflow-hidden flex flex-col p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-xl text-slate-800 dark:text-white">Обратная связь</h3>
-                <button id="close-issue-btn" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 active:bg-slate-200 dark:bg-slate-800 dark:text-slate-400">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <textarea id="issue-text" rows="4" placeholder="Опишите проблему, предложение или ошибку..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm focus:outline-none focus:border-emerald-500 mb-4 resize-none dark:bg-[#1e1e1e] dark:border-slate-700 dark:text-white"></textarea>
-            <div id="issue-status" class="text-sm font-medium mb-3 hidden"></div>
-            <button id="submit-issue-btn" class="w-full py-3 bg-emerald-600 text-white font-bold rounded-2xl active:bg-emerald-700 flex items-center justify-center gap-2 transition-colors">
-                <span>Отправить</span>
-            </button>
         </div>
     </div>
 
@@ -4654,71 +4630,6 @@
 
 
         document.addEventListener('DOMContentLoaded', init);
-        // Issue Modal Logic
-        const issueModal = document.getElementById('issue-modal');
-        const openIssueBtn = document.getElementById('open-issue-btn');
-        const closeIssueBtn = document.getElementById('close-issue-btn');
-        const submitIssueBtn = document.getElementById('submit-issue-btn');
-        const issueText = document.getElementById('issue-text');
-        const issueStatus = document.getElementById('issue-status');
-
-        if (openIssueBtn) {
-            openIssueBtn.addEventListener('click', () => {
-                issueModal.classList.remove('hidden');
-                issueText.value = '';
-                issueStatus.classList.add('hidden');
-            });
-        }
-        
-        if (closeIssueBtn) {
-            closeIssueBtn.addEventListener('click', () => {
-                issueModal.classList.add('hidden');
-            });
-        }
-
-        if (submitIssueBtn) {
-            submitIssueBtn.addEventListener('click', async () => {
-                const text = issueText.value.trim();
-                if (!text) {
-                    issueStatus.textContent = 'Введите текст сообщения';
-                    issueStatus.className = 'text-sm font-medium mb-3 text-red-500';
-                    issueStatus.classList.remove('hidden');
-                    return;
-                }
-
-                submitIssueBtn.disabled = true;
-                submitIssueBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Отправка...';
-                issueStatus.classList.add('hidden');
-
-                try {
-                    const response = await fetch('/.netlify/functions/report-issue', {
-                        method: 'POST',
-                        body: JSON.stringify({ message: text }),
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-
-                    const data = await response.json();
-                    if (response.ok && data.success) {
-                        issueStatus.textContent = 'Сообщение успешно отправлено!';
-                        issueStatus.className = 'text-sm font-medium mb-3 text-emerald-600';
-                        issueStatus.classList.remove('hidden');
-                        issueText.value = '';
-                        setTimeout(() => {
-                            issueModal.classList.add('hidden');
-                        }, 2000);
-                    } else {
-                        throw new Error(data.error || 'Ошибка при отправке');
-                    }
-                } catch (err) {
-                    issueStatus.textContent = 'Ошибка: ' + err.message;
-                    issueStatus.className = 'text-sm font-medium mb-3 text-red-500';
-                    issueStatus.classList.remove('hidden');
-                } finally {
-                    submitIssueBtn.disabled = false;
-                    submitIssueBtn.innerHTML = '<span>Отправить</span>';
-                }
-            });
-        }
     </script>
 </body>
 
