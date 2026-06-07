@@ -1,8 +1,10 @@
 node_modules/
-
-.DS_Store
-Thumbs.db
-*.log
-.vscode/
-.gemini/
+dist/
+versions/
+*.zip
 .env
+.env.*
+.DS_Store
+__pycache__/
+*.pyc
+inline.js

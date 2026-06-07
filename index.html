@@ -3,8 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; media-src 'self'; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; worker-src 'self'">
     <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#059669">
@@ -223,6 +225,31 @@
             -webkit-user-select: none;
             -ms-user-select: none;
             touch-action: pan-x pan-y;
+        }
+
+        /* Разрешаем выделение текста для слов, примеров и правил */
+        #word-modal, 
+        #practice-modal, 
+        #practice-grammar-view,
+        .word-card,
+        .grammar-content {
+            user-select: text;
+            -webkit-user-select: text;
+            -ms-user-select: text;
+            cursor: auto;
+        }
+
+        /* Запрещаем выделение кнопок и иконок внутри выделяемых областей */
+        button, 
+        .nav-tab, 
+        .dropdown-trigger, 
+        .dropdown-option, 
+        .letter-card, 
+        .flip-card,
+        i[class^="fa-"] {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -ms-user-select: none !important;
         }
 
         /* ========== СТИЛИ ПОЛОСЫ ПРОКРУТКИ ========== */
@@ -923,8 +950,23 @@
     </style>
 </head>
 
-<body class="bg-slate-50 text-slate-800 md:pl-[160px] md:overflow-y-auto md:h-auto">
+<body class="bg-slate-50 text-slate-800 md:pl-[160px] md:overflow-y-auto md:h-auto loading">
 
+    <div id="app-loader" role="status" aria-live="polite" aria-label="Загрузка приложения LezgiMez">
+        <div class="loader-logo">LezgiMez</div>
+        <div class="loader-spinner" aria-hidden="true"></div>
+        <div id="loader-status" class="mt-6 text-sm font-semibold text-slate-600">Готовим приложение...</div>
+        <div class="mt-4 w-64 h-2 bg-slate-100 rounded-full overflow-hidden" aria-hidden="true">
+            <div id="loader-progress-fill" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width:0%"></div>
+        </div>
+        <div id="loader-percent" class="mt-2 text-xs font-bold text-emerald-600">0%</div>
+        <div class="mt-6 w-72 max-w-[82vw] text-left text-xs text-slate-500 space-y-2">
+            <div id="loader-step-words"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Словарь</div>
+            <div id="loader-step-grammar"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Грамматика</div>
+            <div id="loader-step-audio"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Озвучка алфавита</div>
+        </div>
+        <button id="loader-skip-btn" type="button" class="mt-6 text-xs font-bold text-slate-400 hover:text-emerald-600 transition-colors">Открыть сразу</button>
+    </div>
 
     <!-- Top Header -->
     <header class="app-header bg-white border-b border-slate-100 sticky top-0 z-50 md:hidden">
@@ -1009,7 +1051,7 @@
                             </button>
                             <div id="category-filter-panel"
                                 class="dropdown-panel hidden absolute right-0 z-[70] mt-2 w-[220px] bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden max-h-[280px]">
-                                <div class="scroll-area max-h-[280px] overflow-y-auto pt-0 pb-2">
+                                <div class="scroll-area max-h-[280px] overflow-y-auto pt-0 pb-0">
                                     <!-- options populated by JS -->
                                 </div>
                             </div>
@@ -1032,6 +1074,7 @@
                     </div>
                 </div>
 
+                <div id="vocab-context" class="text-sm text-slate-600 bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 mb-4 hidden"></div>
                 <div id="words-loading" class="mb-4 hidden"></div>
                 <div id="words-grid"
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-6">
@@ -1053,6 +1096,44 @@
                     </div>
                     <h1 class="text-4xl font-bold tracking-tighter text-emerald-900">Практика</h1>
                     <p class="text-slate-500 mt-2 text-sm max-w-[240px] mx-auto">Выберите режим и тренируйте память</p>
+                </div>
+
+                <!-- Карточка "Сегодня" (Умная тренировка) -->
+                <div id="today-card" class="bg-white border border-slate-100 rounded-3xl p-5 mb-6 shadow-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 bg-emerald-100 rounded-2xl flex-shrink-0 flex items-center justify-center">
+                            <i class="fa-solid fa-calendar-day text-emerald-600 text-2xl"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[10px] uppercase font-bold tracking-wider text-emerald-600">Ваш план на сегодня</div>
+                            <h2 class="font-bold text-lg text-slate-800 mt-0.5">Умная тренировка</h2>
+                            <p id="today-summary" class="text-sm text-slate-500 mt-1">Загрузка плана...</p>
+                            
+                            <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+                                <div class="bg-slate-50 border border-slate-100/50 p-3 rounded-2xl">
+                                    <div id="today-due" class="text-lg font-bold text-slate-800">0</div>
+                                    <div class="text-[10px] text-slate-400 uppercase font-semibold mt-0.5 tracking-wider">Повторить</div>
+                                </div>
+                                <div class="bg-slate-50 border border-slate-100/50 p-3 rounded-2xl">
+                                    <div id="today-new" class="text-lg font-bold text-slate-800">0</div>
+                                    <div class="text-[10px] text-slate-400 uppercase font-semibold mt-0.5 tracking-wider">Новые</div>
+                                </div>
+                                <div class="bg-slate-50 border border-slate-100/50 p-3 rounded-2xl">
+                                    <div id="today-weak" class="text-lg font-bold text-slate-800">0</div>
+                                    <div class="text-[10px] text-slate-400 uppercase font-semibold mt-0.5 tracking-wider">Сложные</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col sm:flex-row gap-3 mt-5">
+                                <button id="today-start-btn" type="button" class="flex-1 py-3 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-2xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-play text-xs"></i> Начать тренировку
+                                </button>
+                                <button id="today-mistakes-btn" type="button" class="flex-1 py-3 bg-slate-100 active:bg-slate-200 text-slate-700 font-semibold rounded-2xl text-sm transition-colors flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-triangle-exclamation text-xs text-rose-500"></i> Сложные слова
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="space-y-4 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4">
@@ -1154,7 +1235,7 @@
                         </button>
                         <div id="practice-category-panel"
                             class="dropdown-panel hidden absolute left-0 right-0 z-[70] bottom-full mb-2 w-full bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden max-h-[280px]">
-                            <div class="scroll-area max-h-[280px] overflow-y-auto pt-0 pb-2">
+                            <div class="scroll-area max-h-[280px] overflow-y-auto pt-0 pb-0">
                                 <!-- options populated by JS -->
                             </div>
                         </div>
@@ -1289,7 +1370,7 @@
                                 <i class="fa-solid fa-globe w-5 text-emerald-600"></i>
                                 <span>Версия приложения</span>
                             </div>
-                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.0.4</span>
+                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.2.3</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-t mt-3 pt-3 border-slate-100">
                             <div class="flex items-center gap-x-3">
@@ -1333,6 +1414,8 @@
                             </a>
                         </div>
                     </div>
+
+
 
                     <div class="bg-white border border-slate-100 rounded-3xl p-5 text-base">
                         <div class="font-semibold mb-3 flex items-center gap-x-2">
@@ -1494,7 +1577,7 @@
             if (audioPath) {
                 const audio = new Audio(getVersionedAudioUrl(audioPath));
                 audio.play().catch(err => {
-                    console.warn("Файл не найден, используем синтезатор:", err);
+                    warn("Файл не найден, используем синтезатор:", err);
                     if (text) runFallbackSpeech(text);
                 });
                 return;
@@ -1524,6 +1607,17 @@
         // Global state
         let WORDS = [];
         let GRAMMAR = [];
+        const APP_VERSION = '2.1.0';
+        const DEBUG = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('debug=1');
+        const log = (...args) => { if (DEBUG) console.log(...args); };
+        const warn = (...args) => { if (DEBUG) console.warn(...args); };
+        const ALPHABET_AUDIO_FILES = [
+            'а', 'б', 'в', 'г', 'гъ', 'гь', 'д', 'е', 'ж', 'з', 'и', 'й',
+            'к', 'к1', 'къ', 'кь', 'л', 'м', 'н', 'п', 'п1', 'р', 'с', 'т',
+            'т1', 'у', 'уь', 'ф', 'х', 'хъ', 'хь', 'ц', 'ц1', 'ч', 'ч1',
+            'ш', 'ы', 'э', 'ю', 'я'
+        ];
+        let SEARCH_INDEX = [];
         let currentTab = 'alphabet';
         const PAGE_SIZE = 20;
         let loadedCount = 0;
@@ -1559,10 +1653,36 @@
             });
         }
 
+        function supportsNotifications() {
+            return typeof window !== 'undefined' && 'Notification' in window;
+        }
+
+        async function registerPeriodicReminder() {
+            if (!('serviceWorker' in navigator)) return false;
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                if (!('periodicSync' in registration)) return false;
+                if (!('permissions' in navigator) || !navigator.permissions.query) return false;
+                const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+                if (status.state !== 'granted') return false;
+                await registration.periodicSync.register('daily-reminder', { minInterval: 12 * 60 * 60 * 1000 });
+                return true;
+            } catch (e) {
+                warn('[PWA] Periodic sync unavailable', e);
+                return false;
+            }
+        }
+
         function updateNotifUI() {
             const bell = document.getElementById('notif-bell-icon');
             const statusText = document.getElementById('notif-status-text');
             if (!bell || !statusText) return;
+
+            if (!supportsNotifications()) {
+                bell.className = 'fa-solid fa-bell-slash w-5 text-center text-slate-400 transition-colors duration-200';
+                statusText.textContent = 'Не поддерживаются этим браузером';
+                return;
+            }
 
             if (Notification.permission === 'denied') {
                 bell.className = 'fa-solid fa-bell-slash w-5 text-center text-red-600 transition-colors duration-200';
@@ -1572,7 +1692,7 @@
 
             const isEnabled = localStorage.getItem('lezgi_notif_enabled') === '1';
 
-            if (isEnabled) {
+            if (isEnabled && Notification.permission === 'granted') {
                 bell.className = 'fa-solid fa-bell w-5 text-center text-emerald-600 transition-colors duration-200';
                 statusText.textContent = 'Включены (18:00 - 21:00)';
             } else {
@@ -1582,6 +1702,11 @@
         }
 
         async function requestNotificationPermission() {
+            if (!supportsNotifications()) {
+                alert('Этот браузер не поддерживает уведомления.');
+                updateNotifUI();
+                return;
+            }
             const permission = await Notification.requestPermission();
             localStorage.setItem('lezgi_notif_asked', '1');
             dismissNotifBanner();
@@ -1589,17 +1714,23 @@
             if (permission === 'granted') {
                 localStorage.setItem('lezgi_notif_enabled', '1');
                 await syncNotifToIDB('1');
+                await registerPeriodicReminder();
             }
             updateNotifUI();
         }
 
         async function toggleNotifications() {
+            if (!supportsNotifications()) {
+                updateNotifUI();
+                return;
+            }
             if (Notification.permission === 'default') {
                 await requestNotificationPermission();
             } else if (Notification.permission === 'granted') {
                 const newState = localStorage.getItem('lezgi_notif_enabled') === '1' ? '0' : '1';
                 localStorage.setItem('lezgi_notif_enabled', newState);
                 await syncNotifToIDB(newState);
+                if (newState === '1') await registerPeriodicReminder();
                 updateNotifUI();
             }
         }
@@ -1644,56 +1775,96 @@
         function validateProgressData(data) {
             if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
             if (!Array.isArray(data.favorites) || !Array.isArray(data.learned)) return false;
-            if (!data.favorites.every(id => typeof id === 'string') || !data.learned.every(id => typeof id === 'string')) return false;
+            if (!data.favorites.every(id => typeof id === 'string' && id.length <= 120)) return false;
+            if (!data.learned.every(id => typeof id === 'string' && id.length <= 120)) return false;
             if (data.favorites.length > 10000 || data.learned.length > 10000) return false;
 
             if (data.stats !== undefined) {
-                if (!data.stats || typeof data.stats !== 'object') return false;
-                if (typeof data.stats.quizzes !== 'number' || typeof data.stats.scoreSum !== 'number') return false;
+                if (!data.stats || typeof data.stats !== 'object' || Array.isArray(data.stats)) return false;
+                const { quizzes, scoreSum } = data.stats;
+                if (typeof quizzes !== 'number' || typeof scoreSum !== 'number') return false;
+                if (!Number.isFinite(quizzes) || !Number.isFinite(scoreSum)) return false;
+                if (quizzes < 0 || scoreSum < 0 || quizzes > 100000 || scoreSum > 10000000) return false;
             }
 
             if (data.srs !== undefined) {
                 if (!data.srs || typeof data.srs !== 'object' || Array.isArray(data.srs)) return false;
                 if (Object.keys(data.srs).length > 20000) return false;
                 for (const key in data.srs) {
+                    if (typeof key !== 'string' || key.length > 120) return false;
                     const val = data.srs[key];
                     if (!val || typeof val !== 'object' || Array.isArray(val)) return false;
-                    if (typeof val.next !== 'number' || typeof val.last !== 'number' || typeof val.ivl !== 'number') return false;
-                    if (typeof val.success !== 'number' || typeof val.errors !== 'number') return false;
-                    if (val.ease !== undefined && typeof val.ease !== 'number') return false;
+                    const numeric = ['next', 'last', 'ivl', 'success', 'errors'];
+                    for (const field of numeric) {
+                        if (typeof val[field] !== 'number' || !Number.isFinite(val[field])) return false;
+                    }
+                    if (val.ease !== undefined && (typeof val.ease !== 'number' || !Number.isFinite(val.ease))) return false;
+                    if (val.ivl < 0 || val.ivl > 3650 || val.success < 0 || val.errors < 0) return false;
                 }
             }
             return true;
         }
 
+        function knownWordIds() {
+            return new Set((WORDS || []).map(w => w.id));
+        }
+
         function normalizeProgress(data) {
             const def = { favorites: [], learned: [], stats: { quizzes: 0, scoreSum: 0 }, srs: {} };
             if (!data || typeof data !== 'object' || Array.isArray(data)) return def;
+            const ids = knownWordIds();
+            const filterIds = (arr) => Array.from(new Set((Array.isArray(arr) ? arr : [])
+                .filter(id => typeof id === 'string' && id.length <= 120)
+                .filter(id => ids.size === 0 || ids.has(id))));
+
+            const srs = {};
+            const rawSrs = (data.srs && typeof data.srs === 'object' && !Array.isArray(data.srs)) ? data.srs : {};
+            for (const [id, card] of Object.entries(rawSrs)) {
+                if (ids.size && !ids.has(id)) continue;
+                if (!card || typeof card !== 'object' || Array.isArray(card)) continue;
+                const next = Number(card.next || 0);
+                const last = Number(card.last || 0);
+                const ivl = Math.max(0, Math.min(3650, Number(card.ivl || 0)));
+                const success = Math.max(0, Math.min(100000, Number(card.success || 0)));
+                const errors = Math.max(0, Math.min(100000, Number(card.errors || 0)));
+                const ease = Math.max(1.3, Math.min(3.2, Number(card.ease || 2.5)));
+                if ([next, last, ivl, success, errors, ease].every(Number.isFinite)) {
+                    srs[id] = { next, last, ivl, success, errors, ease };
+                }
+            }
+
             return {
-                favorites: Array.isArray(data.favorites) ? data.favorites : [],
-                learned: Array.isArray(data.learned) ? data.learned : [],
+                favorites: filterIds(data.favorites),
+                learned: filterIds(data.learned),
                 stats: {
-                    quizzes: typeof data.stats?.quizzes === 'number' ? data.stats.quizzes : 0,
-                    scoreSum: typeof data.stats?.scoreSum === 'number' ? data.stats.scoreSum : 0
+                    quizzes: Math.max(0, Math.min(100000, Number(data.stats?.quizzes || 0))),
+                    scoreSum: Math.max(0, Math.min(10000000, Number(data.stats?.scoreSum || 0)))
                 },
-                srs: (data.srs && typeof data.srs === 'object' && !Array.isArray(data.srs)) ? data.srs : {}
+                srs
             };
         }
 
         function importProgress(file) {
             if (!file) return;
+            if (file.size > 512 * 1024) {
+                alert('Файл прогресса слишком большой. Максимум — 512 КБ.');
+                return;
+            }
             if (!confirm('Вы уверены? Текущий прогресс будет полностью заменен данными из файла.')) return;
             const reader = new FileReader();
             reader.onload = e => {
                 try {
                     const data = JSON.parse(e.target.result);
+                    if (!validateProgressData(data)) throw new Error('invalid progress schema');
                     PROGRESS = normalizeProgress(data);
                     saveProgress(true);
-                    alert('Прогресс успешно импортирован и нормализован!');
+                    alert('Прогресс успешно импортирован и проверен.');
                     location.reload();
+                } catch (err) {
+                    alert('Ошибка: неверный файл прогресса или неподдерживаемая схема.');
                 }
-                catch (err) { alert('Ошибка: Неверный файл прогресса. Формат повреждён или не соответствует схеме.'); }
             };
+            reader.onerror = () => alert('Не удалось прочитать файл прогресса.');
             reader.readAsText(file);
         }
 
@@ -1702,7 +1873,7 @@
             if (saved) {
                 try {
                     PROGRESS = normalizeProgress(JSON.parse(saved));
-                } catch (e) { console.error('Error loading progress', e); }
+                } catch (e) { warn('Error loading progress', e); }
             }
             if (!PROGRESS) PROGRESS = normalizeProgress(null);
             updateStatsUI();
@@ -1773,6 +1944,103 @@
                     avgScoreEl.textContent = '—';
                 }
             }
+            updateTodayUI();
+        }
+
+        const SRS_RATING = Object.freeze({ Again: 1, Hard: 2, Good: 3, Easy: 4 });
+
+        function ensureSrsCard(wordId) {
+            if (!PROGRESS.srs[wordId]) {
+                PROGRESS.srs[wordId] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0, ease: 2.5 };
+            }
+            const card = PROGRESS.srs[wordId];
+            if (typeof card.ease !== 'number' || !Number.isFinite(card.ease)) card.ease = 2.5;
+            card.ivl = Math.max(0, Number(card.ivl || 0));
+            card.success = Math.max(0, Number(card.success || 0));
+            card.errors = Math.max(0, Number(card.errors || 0));
+            return card;
+        }
+
+        function reviewSrsCard(wordId, rating, now = Date.now()) {
+            const card = ensureSrsCard(wordId);
+            card.last = now;
+
+            if (rating === SRS_RATING.Again) {
+                card.errors += 1;
+                card.success = 0;
+                card.ease = Math.max(1.3, card.ease - 0.2);
+                card.ivl = 0;
+            } else if (rating === SRS_RATING.Hard) {
+                card.errors += 1;
+                card.ease = Math.max(1.3, card.ease - 0.15);
+                card.ivl = Math.max(1, Math.round((card.ivl || 1) * 0.8));
+            } else if (rating === SRS_RATING.Easy) {
+                card.success += 1;
+                card.ease = Math.min(3.2, card.ease + 0.1);
+                if (card.ivl === 0) card.ivl = 2;
+                else if (card.ivl === 1) card.ivl = 4;
+                else card.ivl = Math.round(card.ivl * card.ease * 1.15);
+            } else {
+                card.success += 1;
+                if (card.ivl === 0) card.ivl = 1;
+                else if (card.ivl === 1) card.ivl = 3;
+                else card.ivl = Math.round(card.ivl * card.ease);
+            }
+
+            card.ivl = Math.max(0, Math.min(card.ivl, 365));
+            card.next = now + (card.ivl * 86400000);
+            return card;
+        }
+
+        function getLearningSnapshot() {
+            const now = Date.now();
+            const words = WORDS || [];
+            const due = words.filter(w => PROGRESS.srs[w.id] && PROGRESS.srs[w.id].next <= now && PROGRESS.srs[w.id].ivl > 0);
+            const fresh = words.filter(w => !PROGRESS.srs[w.id] || PROGRESS.srs[w.id].ivl === 0);
+            const weak = words.filter(w => {
+                const card = PROGRESS.srs[w.id];
+                return card && (card.errors > card.success || card.ease <= 1.8);
+            });
+            return { due, fresh, weak, total: words.length };
+        }
+
+        function updateTodayUI() {
+            const card = document.getElementById('today-card');
+            if (!card) return;
+            const { due, fresh, weak, total } = getLearningSnapshot();
+            const dueEl = document.getElementById('today-due');
+            const newEl = document.getElementById('today-new');
+            const weakEl = document.getElementById('today-weak');
+            if (dueEl) dueEl.textContent = due.length;
+            if (newEl) newEl.textContent = Math.min(5, fresh.length);
+            if (weakEl) weakEl.textContent = weak.length;
+            const summary = document.getElementById('today-summary');
+            if (summary) {
+                if (!total) summary.textContent = 'Словарь ещё загружается.';
+                else if (due.length) summary.textContent = `Сначала повторим ${due.length} слов, затем добавим новые.`;
+                else if (weak.length) summary.textContent = `Сегодня лучше укрепить ${weak.length} сложных слов.`;
+                else summary.textContent = 'Отличный день для 5 новых слов и одной короткой тренировки.';
+            }
+        }
+
+        function startMistakeDeck() {
+            const weak = getLearningSnapshot().weak;
+            if (weak.length < 3) {
+                alert('Пока мало сложных слов. Они появятся после ошибок в тренировках.');
+                return;
+            }
+            const picked = shuffle([...weak]).slice(0, 20);
+            practiceState = {
+                words: picked,
+                queue: [...picked],
+                learnedInSession: new Set(),
+                mistakesInSession: new Set(),
+                seenInSession: new Set(),
+                score: 0,
+                mode: 'flashcards',
+                attempts: 0
+            };
+            showFlashcard();
         }
 
         function toggleFavorite(wordId, event) {
@@ -1815,7 +2083,7 @@
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then((choice) => {
                 if (choice.outcome === 'accepted') {
-                    console.log('[PWA] Installed');
+                    log('[PWA] Installed');
                 }
                 deferredPrompt = null;
             });
@@ -1899,7 +2167,7 @@
                 navigator.serviceWorker.getRegistration().then(registration => {
                     if (registration) {
                         registration.update().then(() => {
-                            console.log('[PWA] Manual update check completed');
+                            log('[PWA] Manual update check completed');
                             setTimeout(() => {
                                 if (registration.installing) {
                                     status.textContent = 'Загрузка...';
@@ -1912,7 +2180,7 @@
                                 }
                             }, 1000);
                         }).catch(err => {
-                            console.warn('[PWA] SW update check failed', err);
+                            warn('[PWA] SW update check failed', err);
                             status.textContent = 'Ошибка';
                             icon.classList.remove('fa-spin');
                         });
@@ -1930,83 +2198,90 @@
             }
         }
 
+        function showUpdateReady() {
+            const status = document.getElementById('update-status');
+            if (status) status.textContent = 'Готово';
+        }
+
         function registerSW() {
             if ('serviceWorker' in navigator) {
-                // Listen for controllerchange to trigger reload/toast
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    // Update ready
+                    showUpdateReady();
                 });
 
                 navigator.serviceWorker.register('sw.js')
                     .then(async (registration) => {
-                        console.log('[PWA] Service Worker registered');
+                        log('[PWA] Service Worker registered');
+                        if (registration.waiting) showUpdateReady();
 
-                        // Check if there is already a waiting worker on load
-                        if (registration.waiting) {
-                            // Update waiting
-                        }
-
-                        // Listen for future updates
                         registration.addEventListener('updatefound', () => {
                             const newWorker = registration.installing;
                             if (newWorker) {
                                 newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        // New update installed
-                                    }
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) showUpdateReady();
                                 });
                             }
                         });
 
-                        if ('periodicSync' in registration) {
-                            try {
-                                const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
-                                if (status.state === 'granted') {
-                                    await registration.periodicSync.register('daily-reminder', {
-                                        minInterval: 12 * 60 * 60 * 1000 // 12 часов
-                                    });
-                                }
-                            } catch (e) {
-                                console.warn('[PWA] Periodic sync error', e);
-                            }
+                        if (supportsNotifications() && Notification.permission === 'granted' && localStorage.getItem('lezgi_notif_enabled') === '1') {
+                            await registerPeriodicReminder();
                         }
                     })
-                    .catch(err => console.warn('[PWA] SW registration failed', err));
+                    .catch(err => warn('[PWA] SW registration failed', err));
             }
 
-            // Offline detection
-            window.addEventListener('online', () => {
-                document.getElementById('offline-banner').classList.add('hidden');
-            });
-            window.addEventListener('offline', () => {
-                document.getElementById('offline-banner').classList.remove('hidden');
-            });
+            const offlineBanner = document.getElementById('offline-banner');
+            window.addEventListener('online', () => offlineBanner?.classList.add('hidden'));
+            window.addEventListener('offline', () => offlineBanner?.classList.remove('hidden'));
+            if (!navigator.onLine) offlineBanner?.classList.remove('hidden');
+        }
+
+        function normalizeLezgiSearch(value) {
+            return String(value || '')
+                .toLowerCase()
+                .normalize('NFC')
+                .replace(/ё/g, 'е')
+                .replace(/[ӏӀI!ʼ’'`|]/g, '1')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function rebuildSearchIndex() {
+            SEARCH_INDEX = (WORDS || []).map(word => ({
+                id: word.id,
+                text: normalizeLezgiSearch([word.lz, word.ru, word.cat, word.ex, ...(word.tags || [])].join(' '))
+            }));
         }
 
         function getSearchResults(words, query) {
-            const normalized = query.toLowerCase().trim();
-            const matchWords = (term) => words.filter(w =>
-                w.lz.toLowerCase().includes(term) ||
-                w.ru.toLowerCase().includes(term)
-            );
+            const normalized = normalizeLezgiSearch(query);
+            if (!normalized) return { results: words, hint: '' };
 
-            const primaryResults = normalized ? matchWords(normalized) : words;
-            if (!normalized || primaryResults.length > 0) {
-                return { results: primaryResults, hint: '' };
-            }
+            if (!SEARCH_INDEX.length || SEARCH_INDEX.length !== WORDS.length) rebuildSearchIndex();
+            const allowed = new Set(words.map(w => w.id));
+            const matchedIds = new Set(SEARCH_INDEX
+                .filter(item => allowed.has(item.id) && item.text.includes(normalized))
+                .map(item => item.id));
+            const primaryResults = words.filter(w => matchedIds.has(w.id));
+            if (primaryResults.length > 0) return { results: primaryResults, hint: '' };
 
-            const fallbackQuery = normalized.replace(/[1|!Ӏ]/gi, 'i');
+            const fallbackQuery = normalized
+                .replace(/к[Ӏӏ1]/g, 'к1')
+                .replace(/п[Ӏӏ1]/g, 'п1')
+                .replace(/т[Ӏӏ1]/g, 'т1')
+                .replace(/ц[Ӏӏ1]/g, 'ц1')
+                .replace(/ч[Ӏӏ1]/g, 'ч1');
             if (fallbackQuery !== normalized) {
-                const fallbackResults = matchWords(fallbackQuery);
+                const fallbackIds = new Set(SEARCH_INDEX
+                    .filter(item => allowed.has(item.id) && item.text.includes(fallbackQuery))
+                    .map(item => item.id));
+                const fallbackResults = words.filter(w => fallbackIds.has(w.id));
                 if (fallbackResults.length > 0) {
-                    return {
-                        results: fallbackResults,
-                        hint: 'Показаны результаты с заменой похожих символов на I'
-                    };
+                    return { results: fallbackResults, hint: 'Показаны результаты с нормализацией кӀ/к1/кI и похожих символов' };
                 }
             }
 
-            return { results: primaryResults, hint: '' };
+            return { results: [], hint: '' };
         }
 
         function initSearchBehavior() {
@@ -2031,48 +2306,52 @@
         // Embedded dictionary (full offline support)
 
 
+        function showFatalLoadError(message) {
+            const loadingEl = document.getElementById('words-loading');
+            const grid = document.getElementById('words-grid');
+            const box = document.createElement('div');
+            box.className = 'col-span-full p-5 rounded-3xl bg-red-50 border border-red-100 text-red-700 text-sm leading-relaxed';
+            box.textContent = message;
+            if (loadingEl) {
+                loadingEl.innerHTML = '';
+                loadingEl.appendChild(box.cloneNode(true));
+                loadingEl.classList.remove('hidden');
+                loadingEl.style.display = 'block';
+            }
+            if (grid) {
+                grid.innerHTML = '';
+                grid.appendChild(box);
+            }
+        }
+
+        async function loadJsonAsset(url, label) {
+            const res = await fetch(url, { cache: 'no-cache' });
+            if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`);
+            return res.json();
+        }
+
         async function loadWords() {
             const loadingEl = document.getElementById('words-loading');
-
             try {
-                const res = await fetch('words.json');
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                WORDS = await res.json();
-                console.log(`[Lezgin] Loaded ${WORDS.length} words from words.json`);
-
+                WORDS = await loadJsonAsset('words.json', 'Словарь');
+                rebuildSearchIndex();
                 if (loadingEl) loadingEl.style.display = 'none';
-                console.log("[Lezgin] Not in demo mode. words.json loaded successfully.");
             } catch (e) {
-                console.warn('[Lezgin] Could not load words.json, using demo words', e);
-
-                // Demo fallback
-                WORDS = DEMO_WORDS.map(w => ({ ...w }));
-
-                console.log("[Lezgin] In demo mode. words.json failed to load or is empty.");
-                // Show info banner in vocabulary screen
-                if (loadingEl) {
-                    loadingEl.innerHTML = `
-                        <div class="bg-amber-50 border border-amber-200 rounded-3xl p-4 text-sm text-amber-700 flex gap-3 items-start">
-                            <i class="fa-solid fa-info-circle mt-0.5"></i>
-                            <div>
-                                <strong>Демо-версия (15 слов)</strong><br>
-                                Полный словарь (2941 слово) доступен при открытии через <code class="bg-amber-100 px-1 rounded">python -m http.server</code> или после установки как приложение.
-                            </div>
-                        </div>
-                    `;
-                    loadingEl.style.display = 'block';
-                }
+                warn('[LezgiMez] Could not load words.json', e);
+                showFatalLoadError('Не удалось загрузить словарь. Проверьте подключение или очистите кэш приложения.');
+                return false;
             }
 
             buildCategoryOptions();
             refreshCategoryCounters();
             syncSelectedCategoryUI();
             updatePracticeAvailability();
-
             updateVocabStats();
             renderAlphabet();
             renderWords();
             initSearchBehavior();
+            updateStatsUI();
+            return true;
         }
 
         function buildCategoryOptions() {
@@ -2089,15 +2368,25 @@
             const createOption = (val, display, type) => {
                 const div = document.createElement('div');
                 div.className = `dropdown-option flex justify-between items-center cursor-pointer text-sm p-3 hover:bg-slate-50`;
-                if (val === 'favorites') {
-                    div.className += ' border-b border-emerald-100 pb-2 mb-1.5';
-                }
+                if (val === 'favorites') div.className += ' border-b border-emerald-100 pb-2 mb-1.5';
                 div.dataset.value = val;
+
+                const name = document.createElement('span');
+                name.className = val === 'favorites' ? 'opt-name flex items-center gap-2' : 'opt-name';
                 if (val === 'favorites') {
-                    div.innerHTML = `<span class="opt-name flex items-center gap-2"><i class="fa-solid fa-star text-amber-400 text-sm"></i><span>${display}</span></span> <span class="count text-slate-400 text-sm"></span>`;
+                    const icon = document.createElement('i');
+                    icon.className = 'fa-solid fa-star text-amber-400 text-sm';
+                    const label = document.createElement('span');
+                    label.textContent = display;
+                    name.append(icon, label);
                 } else {
-                    div.innerHTML = `<span class="opt-name">${display}</span> <span class="count text-slate-400 text-sm"></span>`;
+                    name.textContent = display;
                 }
+
+                const count = document.createElement('span');
+                count.className = 'count text-slate-400 text-sm';
+                div.append(name, count);
+
                 div.addEventListener('click', () => {
                     if (type === 'vocab') setVocabularyCategory(val, display);
                     else setPracticeCategory(val, display);
@@ -2429,7 +2718,11 @@
                     const prefixLen = main.length;
                     const prefixStr = w.lz.substring(0, prefixLen);
                     const restStr = w.lz.substring(prefixLen);
-                    lz.innerHTML = `<span class="text-emerald-600">${prefixStr}</span>${restStr}`;
+                    lz.textContent = '';
+                    const highlighted = document.createElement('span');
+                    highlighted.className = 'text-emerald-600';
+                    highlighted.textContent = prefixStr;
+                    lz.append(highlighted, document.createTextNode(restStr));
 
                     const ru = document.createElement('div');
                     ru.className = 'text-sm text-slate-500';
@@ -2499,7 +2792,7 @@
             if (append) {
                 loadedCount += PAGE_SIZE;
             }
-            console.log(`[renderWords] Current loadedCount: ${loadedCount}, Total filtered words: ${filtered.length}`);
+            log(`[renderWords] Current loadedCount: ${loadedCount}, Total filtered words: ${filtered.length}`);
             // loadedCount теперь всегда отражает количество загруженных элементов (20, 40, 60...)
 
             // Context Banner
@@ -2619,7 +2912,7 @@
         function renderLoadMore(total) {
             const container = document.getElementById('pagination');
             container.innerHTML = '';
-            console.log(`[renderLoadMore] Checking if button needed. Loaded: ${loadedCount}, Total: ${total}`);
+            log(`[renderLoadMore] Checking if button needed. Loaded: ${loadedCount}, Total: ${total}`);
             if (loadedCount >= total) {
                 const done = document.createElement('div');
                 done.className = 'text-sm text-slate-400 font-medium py-3 text-center';
@@ -2708,6 +3001,7 @@
             reportBtn.className = 'py-3.5 px-5 bg-rose-50 active:bg-rose-100 text-rose-600 font-bold rounded-3xl flex items-center justify-center gap-x-2 text-sm border border-rose-100/50 transition-colors shadow-sm';
             reportBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
             reportBtn.title = 'Сообщить об ошибке';
+            reportBtn.setAttribute('aria-label', 'Сообщить об ошибке в слове');
             reportBtn.addEventListener('click', () => {
                 showReportForm(word);
             });
@@ -2736,8 +3030,12 @@
             h3.textContent = 'Сообщить об ошибке';
 
             const p = document.createElement('p');
-            p.className = 'text-sm text-slate-500 mb-4';
+            p.className = 'text-sm text-slate-500 mb-3';
             p.textContent = `В слове «${word.lz}» (${word.ru})`;
+
+            const privacyNote = document.createElement('p');
+            privacyNote.className = 'text-[11px] leading-relaxed text-slate-400 bg-slate-50 border border-slate-100 rounded-2xl p-3 mb-3 text-left';
+            privacyNote.textContent = 'Когда вы отправляете исправление, текст сообщения передаётся администратору проекта для проверки. Не отправляйте личные данные.';
 
             // Блок с подсказкой — примеры для заполнения
             const hintBox = document.createElement('div');
@@ -2761,7 +3059,7 @@
             textarea.style.minHeight = '90px';
 
             form.appendChild(textarea);
-            wrap.append(iconWrap, h3, p, hintBox, form);
+            wrap.append(iconWrap, h3, p, privacyNote, hintBox, form);
 
             // Быстрые подсказки-чипы — заполняют поле одним нажатием
             const chips = [
@@ -2801,62 +3099,63 @@
             sendBtn.className = 'flex-1 py-3 bg-emerald-500 active:bg-emerald-600 text-white font-semibold rounded-3xl text-sm transition-colors flex justify-center items-center gap-2';
             sendBtn.innerHTML = '<span>Отправить</span>';
 
-            sendBtn.addEventListener('click', (e) => {
+            sendBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const text = textarea.value.trim();
                 if (!text) {
                     textarea.focus();
                     return;
                 }
-
-                // Настройки Telegram бота для получения отчетов
-                const TG_BOT_TOKEN = "***REMOVED***"; // Вставьте сюда токен от @BotFather
-                const TG_CHAT_ID = "8639105365";     // Вставьте сюда ваш ID от @userinfobot
+                if (text.length > 1000) {
+                    alert('Описание слишком длинное. Максимум — 1000 символов.');
+                    return;
+                }
 
                 sendBtn.disabled = true;
                 sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Отправка...</span>';
                 sendBtn.classList.add('opacity-70');
 
-                // Если настройки не заполнены — симулируем отправку (для тестов)
-                if (TG_BOT_TOKEN === "ВАШ_ТОКЕН_БОТА" || TG_CHAT_ID === "ВАШ_CHAT_ID") {
-                    setTimeout(() => {
-                        showReportSuccess(word);
-                    }, 800);
-                    return;
-                }
+                const payload = {
+                    wordId: String(word.id || '').slice(0, 120),
+                    word: String(word.lz || '').slice(0, 120),
+                    translation: String(word.ru || '').slice(0, 180),
+                    message: text,
+                    appVersion: APP_VERSION,
+                    createdAt: new Date().toISOString()
+                };
 
-                const messageText = `⚠️ *Новая жалоба в словаре!*\n\n` +
-                    `*Слово:* ${word.lz} (${word.ru})\n` +
-                    `*ID слова:* \`${word.id}\`\n\n` +
-                    `*Описание ошибки:* \n${text}`;
-
-                fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        chat_id: TG_CHAT_ID,
-                        text: messageText,
-                        parse_mode: 'Markdown'
-                    })
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Telegram API error');
+                try {
+                    const endpoints = ['/api/report-word.php', '/api/report-word', '/.netlify/functions/report-word'];
+                    let sent = false;
+                    for (const endpoint of endpoints) {
+                        try {
+                            const response = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) {
+                                sent = true;
+                                break;
+                            }
+                        } catch (endpointError) {
+                            warn('[Report] endpoint failed', endpoint, endpointError);
                         }
-                        return response.json();
-                    })
-                    .then(() => {
-                        showReportSuccess(word);
-                    })
-                    .catch(err => {
-                        console.error('Ошибка отправки в Telegram:', err);
-                        alert('Не удалось отправить жалобу. Проверьте настройки бота и подключение к интернету.');
-                        sendBtn.disabled = false;
-                        sendBtn.innerHTML = '<span>Отправить</span>';
-                        sendBtn.classList.remove('opacity-70');
-                    });
+                    }
+
+                    if (!sent) {
+                        throw new Error('All endpoints failed');
+                    }
+                    showReportSuccess(word);
+                } catch (err) {
+                    warn('[Report] failed', err);
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<span>Отправить</span>';
+                    sendBtn.classList.remove('opacity-70');
+                    setTimeout(() => {
+                        alert('Не удалось отправить жалобу. Попробуйте позже.');
+                    }, 10);
+                }
             });
 
             footer.append(cancelBtn, sendBtn);
@@ -2891,15 +3190,23 @@
             content.append(wrap);
         }
 
+        function isElementVisible(element) {
+            return element && !element.classList.contains('hidden');
+        }
+
         function closeModal() {
             const modal = document.getElementById('word-modal');
             modal.classList.remove('flex');
             modal.classList.add('hidden');
+            if (lastDialogTrigger && typeof lastDialogTrigger.focus === 'function') {
+                lastDialogTrigger.focus({ preventScroll: true });
+            }
         }
 
         // Tab switching
         const VALID_TABS = ['alphabet', 'vocabulary', 'practice', 'more'];
         const SEEN_SCREENS = new Set(); // чтобы анимация входа была только один раз
+        let lastDialogTrigger = null;
 
         function switchTab(tab) {
             if (!tab || !VALID_TABS.includes(tab)) return;
@@ -2915,7 +3222,7 @@
             history.replaceState(null, '', `#${tab}`);
             setTimeout(() => { tabSwitchGuard = false; }, 50);
 
-            if (!localStorage.getItem('lezgi_notif_asked') && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+            if (!localStorage.getItem('lezgi_notif_asked') && supportsNotifications() && Notification.permission === 'default') {
                 document.getElementById('notif-banner')?.classList.remove('hidden');
             }
 
@@ -2970,9 +3277,9 @@
                 const res = await fetch('grammar.json');
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 GRAMMAR = await res.json();
-                console.log(`[Lezgin] Loaded ${GRAMMAR.length} grammar units`);
+                log(`[LezgiMez] Loaded ${GRAMMAR.length} grammar units`);
             } catch (e) {
-                console.warn('[Lezgin] Could not load grammar.json', e);
+                warn('[LezgiMez] Could not load grammar.json', e);
             } finally {
                 const practiceGrammarView = document.getElementById('practice-grammar-view');
                 if (practiceGrammarView && !practiceGrammarView.classList.contains('hidden')) {
@@ -2991,6 +3298,11 @@
         function hideGrammarList() {
             document.getElementById('practice-main-view').classList.remove('hidden');
             document.getElementById('practice-grammar-view').classList.add('hidden');
+        }
+
+        function grammarLevelLabel(level) {
+            const map = { beginner: 'Начальный', intermediate: 'Средний', advanced: 'Продвинутый' };
+            return map[level] || 'Урок';
         }
 
         function renderGrammar() {
@@ -3017,7 +3329,10 @@
                 const title = document.createElement('div');
                 title.className = 'text-lg font-bold text-slate-800 leading-tight';
                 title.textContent = unit.title;
-                left.append(id, title);
+                const meta = document.createElement('div');
+                meta.className = 'mt-2 inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-500';
+                meta.textContent = grammarLevelLabel(unit.level);
+                left.append(id, title, meta);
 
                 const icon = document.createElement('div');
                 icon.className = 'w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 flex-shrink-0 ml-4';
@@ -3446,8 +3761,11 @@
 
             // Show explanation
             const expl = document.createElement('div');
-            expl.className = `mt-6 p-4 rounded-2xl text-sm leading-relaxed animate-in fade-in slide-in-from-top-4 duration-300 ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`;
-            expl.innerHTML = `<strong>${isCorrect ? 'Верно!' : 'Не совсем...'}</strong><br>${explanation}`;
+            expl.className = `mt-6 p-4 rounded-2xl text-sm leading-relaxed animate-fade-in ${isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`;
+            expl.textContent = '';
+            const resultStrong = document.createElement('strong');
+            resultStrong.textContent = isCorrect ? 'Верно!' : 'Не совсем...';
+            expl.append(resultStrong, document.createElement('br'), document.createTextNode(explanation));
             btn.parentElement.appendChild(expl);
 
             const nextBtn = document.createElement('button');
@@ -3478,7 +3796,7 @@
 
             const targetSessionSize = 25; // Увеличим размер сессии для удобства
 
-            let initialWords = [...due];
+            let initialWords = due.slice(0, targetSessionSize);
             // Добавляем новые/ошибочные слова только если просроченных недостаточно
             if (initialWords.length < targetSessionSize) {
                 initialWords.push(...unknown.slice(0, targetSessionSize - initialWords.length));
@@ -3636,71 +3954,36 @@
         }
         function markCard(status) {
             const w = practiceState.queue.shift();
-            practiceState.attempts = (practiceState.attempts || 0) + 1;
-            const now = Date.now();
-
-            if (!PROGRESS.srs[w.id]) {
-                PROGRESS.srs[w.id] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0, ease: 2.5 };
+            if (!w) {
+                showResults();
+                return;
             }
-            let srs = PROGRESS.srs[w.id];
-            if (srs.ease === undefined) srs.ease = 2.5;
 
+            practiceState.attempts = (practiceState.attempts || 0) + 1;
             const isFirstSeen = !practiceState.seenInSession.has(w.id);
             practiceState.seenInSession.add(w.id);
 
             if (status === 'easy') {
                 vibrateSuccess();
                 practiceState.learnedInSession.add(w.id);
-
-                if (isFirstSeen) {
-                    practiceState.score++;
-                    srs.success++;
-                    if (srs.ivl === 0) srs.ivl = 1;
-                    else if (srs.ivl === 1) srs.ivl = 3;
-                    else srs.ivl = Math.round(srs.ivl * srs.ease);
-
-                    srs.ivl = Math.min(srs.ivl, 180);
-                    srs.last = now;
-                    srs.next = now + (srs.ivl * 86400000);
-                } else {
-                    // Was mistaken before in this session
-                    srs.ivl = Math.max(1, srs.ivl);
-                    srs.last = now;
-                    srs.next = now + (srs.ivl * 86400000);
-                }
-
+                reviewSrsCard(w.id, isFirstSeen ? SRS_RATING.Easy : SRS_RATING.Good);
+                if (isFirstSeen) practiceState.score++;
                 if (!PROGRESS.learned.includes(w.id)) PROGRESS.learned.push(w.id);
             } else if (status === 'hard') {
                 practiceState.mistakesInSession.add(w.id);
                 practiceState.queue.push(w);
-
-                if (isFirstSeen) {
-                    srs.ease = Math.max(1.3, srs.ease - 0.15);
-                    srs.ivl = Math.max(1, Math.round(srs.ivl * 0.7));
-                }
-
-                srs.last = now;
-                srs.next = now + (srs.ivl * 86400000);
-            } else if (status === 'wrong') {
+                reviewSrsCard(w.id, SRS_RATING.Hard);
+            } else {
                 vibrateError();
                 practiceState.mistakesInSession.add(w.id);
                 practiceState.queue.push(w);
-
-                if (isFirstSeen) {
-                    srs.ease = Math.max(1.3, srs.ease - 0.2);
-                    srs.errors++;
-                    srs.success = 0;
-                    srs.ivl = 0;
-                }
-
-                srs.last = now;
-                srs.next = now + (srs.ivl * 86400000);
-
+                reviewSrsCard(w.id, SRS_RATING.Again);
                 const idx = PROGRESS.learned.indexOf(w.id);
                 if (idx > -1) PROGRESS.learned.splice(idx, 1);
             }
 
             saveProgress();
+            updateTodayUI();
             showFlashcard();
         }
         function startQuiz() {
@@ -3794,20 +4077,8 @@
                 practiceState.score++;
                 btn.classList.add('!border-emerald-500', '!bg-emerald-50', 'text-emerald-700');
 
-                // Mark as learned if correct (using PROGRESS.srs and PROGRESS.learned)
                 const word = practiceState.words[practiceState.idx];
-                if (!PROGRESS.srs[word.id]) {
-                    PROGRESS.srs[word.id] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0 };
-                }
-
-                let srs = PROGRESS.srs[word.id];
-                srs.success++;
-                if (srs.ivl === 0) srs.ivl = 1;
-                else srs.ivl = Math.round(srs.ivl * 2.1); // Продвигаем прогресс
-
-                srs.last = Date.now();
-                srs.next = srs.last + (srs.ivl * 86400000);
-
+                reviewSrsCard(word.id, SRS_RATING.Good);
                 if (!PROGRESS.learned.includes(word.id)) {
                     PROGRESS.learned.push(word.id);
                 }
@@ -3820,21 +4091,14 @@
                     }
                 });
 
-                // Track error in SRS
                 const word = practiceState.words[practiceState.idx];
-                if (!PROGRESS.srs[word.id]) {
-                    PROGRESS.srs[word.id] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0 };
-                }
-                let srs = PROGRESS.srs[word.id];
-                srs.errors++;
-                srs.success = 0;
-                srs.ivl = Math.max(0, Math.round(srs.ivl * 0.5));
-                srs.last = Date.now();
-                srs.next = srs.last + (srs.ivl * 86400000);
-
+                reviewSrsCard(word.id, SRS_RATING.Again);
                 const learnedIdx = PROGRESS.learned.indexOf(word.id);
                 if (learnedIdx > -1) PROGRESS.learned.splice(learnedIdx, 1);
             }
+
+            saveProgress();
+            updateTodayUI();
 
             setTimeout(() => {
                 practiceState.idx++;
@@ -3893,7 +4157,7 @@
             saveProgress();
 
             const resWrap = document.createElement('div');
-            resWrap.className = 'px-8 pt-10 pb-8 text-center flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500';
+            resWrap.className = 'px-8 pt-10 pb-8 text-center flex flex-col items-center justify-center animate-fade-in';
 
             if (pct === 100) {
                 const cupWrap = document.createElement('div');
@@ -3952,6 +4216,7 @@
             if (practiceState.mode === 'flashcards') startFlashcards();
             else if (practiceState.mode === 'pairs') startPairs();
             else if (practiceState.mode === 'oddWord') startOddWord();
+            else if (practiceState.mode === 'grammar') startGrammarExercises(GRAMMAR.find(u => u.id === practiceState.unitId) || GRAMMAR[0]);
             else startQuiz();
         }
 
@@ -4091,17 +4356,7 @@
                     setTimeout(() => {
                         practiceState.matchedIds.push(matchedId);
 
-                        if (!PROGRESS.srs[matchedId]) {
-                            PROGRESS.srs[matchedId] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0 };
-                        }
-
-                        let srs = PROGRESS.srs[matchedId];
-                        srs.success++;
-                        if (srs.ivl === 0) srs.ivl = 1;
-                        else srs.ivl = Math.round(srs.ivl * 1.8);
-
-                        srs.last = Date.now();
-                        srs.next = srs.last + (srs.ivl * 86400000);
+                        reviewSrsCard(matchedId, SRS_RATING.Good);
 
                         saveProgress();
 
@@ -4122,6 +4377,10 @@
 
                     leftBtn.style.animation = 'shake 0.4s';
                     rightBtn.style.animation = 'shake 0.4s';
+                    reviewSrsCard(practiceState.selectedLeft, SRS_RATING.Hard);
+                    reviewSrsCard(practiceState.selectedRight, SRS_RATING.Hard);
+                    saveProgress();
+                    updateTodayUI();
 
                     practiceState.selectedLeft = null;
                     practiceState.selectedRight = null;
@@ -4242,27 +4501,16 @@
                 btn.classList.add('!border-emerald-500', '!bg-emerald-50');
                 btn.querySelector('i').className = 'fa-solid fa-check-circle text-emerald-500 text-xl';
 
-                // Mark as learned
-                const word = WORDS.find(w => w.id === selectedId); // Используем WORDS
+                const word = WORDS.find(w => w.id === selectedId);
                 if (word) {
-                    if (!PROGRESS.srs[word.id]) {
-                        PROGRESS.srs[word.id] = { next: 0, last: 0, ivl: 0, success: 0, errors: 0 };
-                    }
-
-                    let srs = PROGRESS.srs[word.id];
-                    srs.success++;
-                    if (srs.ivl === 0) srs.ivl = 1;
-                    else srs.ivl = Math.round(srs.ivl * 1.5);
-
-                    srs.last = Date.now();
-                    srs.next = srs.last + (srs.ivl * 86400000);
-
+                    reviewSrsCard(word.id, SRS_RATING.Good);
                     if (!PROGRESS.learned.includes(word.id)) {
                         PROGRESS.learned.push(word.id);
                     }
                 }
             } else {
                 vibrateError();
+                reviewSrsCard(selectedId, SRS_RATING.Hard);
                 btn.classList.add('!border-red-300', '!bg-red-50');
                 btn.querySelector('i').className = 'fa-solid fa-times-circle text-red-400 text-xl';
 
@@ -4273,6 +4521,9 @@
                     }
                 });
             }
+
+            saveProgress();
+            updateTodayUI();
 
             setTimeout(() => {
                 practiceState.idx++;
@@ -4356,6 +4607,14 @@
             }
         }
 
+        function hideLoader() {
+            const loader = document.getElementById('app-loader');
+            document.body.classList.remove('loading');
+            if (!loader) return;
+            loader.classList.add('fade-out');
+            setTimeout(() => loader.remove(), 550);
+        }
+
         async function startPreloading() {
             const loaderStatus = document.getElementById('loader-status');
             const loaderProgress = document.getElementById('loader-progress-fill');
@@ -4364,13 +4623,6 @@
             const loaderStep2 = document.getElementById('loader-step-grammar');
             const loaderStep3 = document.getElementById('loader-step-audio');
             const skipBtn = document.getElementById('loader-skip-btn');
-
-            const ALPHABET_AUDIO_FILES = [
-                'а', 'б', 'в', 'г', 'гъ', 'гь', 'д', 'е', 'ж', 'з', 'и', 'й',
-                'к', 'к1', 'къ', 'кь', 'л', 'м', 'н', 'п', 'п1', 'р', 'с', 'т',
-                'т1', 'у', 'уь', 'ф', 'х', 'хъ', 'хь', 'ц', 'ц1', 'ч', 'ч1',
-                'ш', 'ы', 'э', 'ю', 'я'
-            ];
 
             const assets = [
                 { type: 'json', key: 'words', url: 'words.json', label: 'База слов' },
@@ -4419,11 +4671,11 @@
                         await res.arrayBuffer();
                     }
                 } catch (e) {
-                    console.warn(`[Preloader] Failed to load asset: ${asset.url}`, e);
+                    warn(`[Preloader] Failed to load asset: ${asset.url}`, e);
                     if (asset.key === 'words') {
-                        if (loaderStep1) loaderStep1.innerHTML = '<i class="fa-solid fa-circle-exclamation text-amber-500 mr-3 text-base"></i>Словарь (демо-режим)';
+                        if (loaderStep1) loaderStep1.innerHTML = '<i class="fa-solid fa-circle-exclamation text-red-500 mr-3 text-base"></i>Словарь не загрузился';
                     } else if (asset.key === 'grammar') {
-                        if (loaderStep2) loaderStep2.innerHTML = '<i class="fa-solid fa-circle-exclamation text-amber-500 mr-3 text-base"></i>Грамматика (демо-режим)';
+                        if (loaderStep2) loaderStep2.innerHTML = '<i class="fa-solid fa-circle-exclamation text-amber-500 mr-3 text-base"></i>Грамматика временно недоступна';
                     }
                 } finally {
                     updateProgress();
@@ -4459,12 +4711,12 @@
 
                 // Handle missing words/grammar gracefully (e.g. if skipped early or failed)
                 if (!WORDS || WORDS.length === 0) {
-                    WORDS = DEMO_WORDS.map(w => ({ ...w }));
-                    const loadingEl = document.getElementById('words-loading');
-                    if (loadingEl) {
-                        loadingEl.style.display = 'none';
-                    }
+                    showFatalLoadError('Не удалось загрузить словарь. Проверьте подключение или очистите кэш приложения.');
+                    hideLoader();
+                    return;
                 }
+                if (!Array.isArray(GRAMMAR)) GRAMMAR = [];
+                rebuildSearchIndex();
 
                 // Render everything
                 buildCategoryOptions();
@@ -4475,6 +4727,7 @@
                 renderAlphabet();
                 renderWords();
                 initSearchBehavior();
+                updateStatsUI();
 
                 const alphabetCountEl = document.getElementById('alphabet-count');
                 if (alphabetCountEl) alphabetCountEl.textContent = ALPHABET.length;
@@ -4513,6 +4766,19 @@
 
         // Init everything
         function init() {
+            // Prevent desktop zooming
+            document.addEventListener('wheel', function(e) {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+' || e.code === 'NumpadAdd' || e.code === 'NumpadSubtract')) {
+                    e.preventDefault();
+                }
+            });
+
             registerSW();
 
             // Tabs
@@ -4541,10 +4807,16 @@
             document.getElementById('prac-mode-pairs')?.addEventListener('click', startPairs);
             document.getElementById('prac-mode-odd')?.addEventListener('click', startOddWord);
             document.getElementById('prac-mode-srs')?.addEventListener('click', startFlashcards); // SRS mode also uses flashcards
+            document.getElementById('today-start-btn')?.addEventListener('click', startFlashcards);
+            document.getElementById('today-mistakes-btn')?.addEventListener('click', startMistakeDeck);
 
             // Modals backdrops
             document.getElementById('word-modal')?.addEventListener('click', (e) => { if (e.target.id === 'word-modal') closeModal(); });
             document.getElementById('practice-modal')?.addEventListener('click', (e) => { if (e.target.id === 'practice-modal') endPractice(); });
+            document.addEventListener('click', (e) => {
+                const trigger = e.target.closest('button, [role="button"], a, input, textarea, select');
+                if (trigger) lastDialogTrigger = trigger;
+            }, true);
 
             // Notif banner
             document.getElementById('notif-banner-actions')?.addEventListener('click', (e) => {
@@ -4568,7 +4840,6 @@
 
             updateNotifUI();
             initKeyboard();
-            initZoomLock();
             const alphabetCountEl = document.getElementById('alphabet-count');
             if (alphabetCountEl) alphabetCountEl.textContent = ALPHABET.length; // Динамически устанавливаем количество букв
 
@@ -4588,30 +4859,28 @@
         // Keyboard shortcuts
         function initKeyboard() {
             document.addEventListener('keydown', (e) => {
-                if (e.metaKey && e.key === '/') {
+                if (e.key === 'Escape') {
+                    const wordModal = document.getElementById('word-modal');
+                    const practiceModal = document.getElementById('practice-modal');
+                    if (isElementVisible(wordModal)) {
+                        e.preventDefault();
+                        closeModal();
+                        return;
+                    }
+                    if (isElementVisible(practiceModal)) {
+                        e.preventDefault();
+                        endPractice();
+                        return;
+                    }
+                }
+
+                if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                     e.preventDefault();
                     switchTab('vocabulary');
                     setTimeout(() => document.getElementById('search-input')?.focus(), 300);
                 }
             });
         }
-
-        function initZoomLock() {
-            document.addEventListener('wheel', (e) => {
-                if (e.ctrlKey) e.preventDefault();
-            }, { passive: false });
-
-            document.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && ['+', '=', '-', '0'].includes(e.key)) {
-                    e.preventDefault();
-                }
-            });
-
-            document.addEventListener('gesturestart', (e) => e.preventDefault());
-            document.addEventListener('gesturechange', (e) => e.preventDefault());
-            document.addEventListener('gestureend', (e) => e.preventDefault());
-        }
-
 
 
         document.addEventListener('DOMContentLoaded', init);

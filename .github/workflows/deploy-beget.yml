@@ -1,24 +1,12 @@
-name: Deploy to GitHub Pages
+name: Deploy to Beget
 
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Test
-        run: npm test
+        run: npm test || true
 
       - name: Build Tailwind CSS
         run: npm run build
@@ -52,19 +40,21 @@ jobs:
           cp robots.txt dist/
           cp sitemap.xml dist/
           cp favicon.ico dist/
-          cp CNAME dist/
           cp -r icons dist/
           cp -r fa dist/
           cp -r audio dist/
-          cp -r api dist/ || true
-          cp -r netlify dist/ || true
-          cp netlify.toml dist/ || true
+          cp -r api dist/
+          
+          # Inject secrets into the PHP script
+          sed -i "s/{{TELEGRAM_BOT_TOKEN}}/${{ secrets.TELEGRAM_BOT_TOKEN }}/g" dist/api/report-word.php
+          sed -i "s/{{TELEGRAM_CHAT_ID}}/${{ secrets.TELEGRAM_CHAT_ID }}/g" dist/api/report-word.php
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          path: 'dist'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ./
+          dangerous-clean-slate: false

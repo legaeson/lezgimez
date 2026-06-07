@@ -1,4 +1,13 @@
-const CACHE_NAME = 'lezgin-pwa-v45'; // Согласованность темных фонов теории и практики
+const CACHE_VERSION = '2.1.0';
+const CACHE_NAME = `lezgimez-pwa-v${CACHE_VERSION}`;
+
+const ALPHABET_AUDIO_FILES = [
+  'а', 'б', 'в', 'г', 'гъ', 'гь', 'д', 'е', 'ж', 'з', 'и', 'й',
+  'к', 'к1', 'къ', 'кь', 'л', 'м', 'н', 'п', 'п1', 'р', 'с', 'т',
+  'т1', 'у', 'уь', 'ф', 'х', 'хъ', 'хь', 'ц', 'ц1', 'ч', 'ч1',
+  'ш', 'ы', 'э', 'ю', 'я'
+];
+
 const CRITICAL_ASSETS = [
   './',
   './index.html',
@@ -6,92 +15,97 @@ const CRITICAL_ASSETS = [
   './output.css',
   './words.json',
   './grammar.json',
+  './robots.txt',
+  './sitemap.xml',
+  './favicon.ico'
 ];
 
 const NON_CRITICAL_ASSETS = [
   './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
   './fa/all.min.css',
   './fa/webfonts/fa-solid-900.woff2',
   './fa/webfonts/fa-regular-400.woff2',
   './fa/webfonts/fa-brands-400.woff2'
 ];
 
-const AUDIO_ASSETS = [
-  './audio/alphabet/в.wav',
-  './audio/alphabet/гъ.wav',
-  './audio/alphabet/гь.wav',
-  './audio/alphabet/къ.wav',
-  './audio/alphabet/кь.wav',
-  './audio/alphabet/к1.wav',
-  './audio/alphabet/п1.wav',
-  './audio/alphabet/т1.wav',
-  './audio/alphabet/уь.wav',
-  './audio/alphabet/х.wav',
-  './audio/alphabet/хъ.wav',
-  './audio/alphabet/хь.wav',
-  './audio/alphabet/ц1.wav',
-  './audio/alphabet/ч1.wav',
-  './audio/alphabet/ы.wav'
-];
+const AUDIO_ASSETS = ALPHABET_AUDIO_FILES.map(letter => `./audio/alphabet/${letter}.wav`);
+
+async function cacheAssets(cache, assets) {
+  await Promise.allSettled(
+    assets.map(asset => cache.add(asset))
+  );
+}
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Caching core assets');
-        
-        // Cache non-critical assets one by one so single failures don't block SW installation
-        NON_CRITICAL_ASSETS.forEach(asset => {
-            cache.add(asset).catch(err => console.warn('[SW] Non-critical asset failed:', asset, err));
-        });
-        
-        // Cache audio assets one by one
-        AUDIO_ASSETS.forEach(asset => {
-            cache.add(asset).catch(err => console.warn('[SW] Audio asset failed:', asset, err));
-        });
-
-        // At least critical assets must load successfully
-        return cache.addAll(CRITICAL_ASSETS);
-      })
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(CRITICAL_ASSETS);
+    await cacheAssets(cache, [...NON_CRITICAL_ASSETS, ...AUDIO_ASSETS]);
+    await self.skipWaiting();
+  })());
 });
 
-// === PUSH NOTIFICATIONS LOGIC ===
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
 
+// === PUSH / REMINDER NOTIFICATIONS ===
 const REMINDER_MESSAGES = [
-  "Пора повторить слова!",
-  "У вас есть слова для повторения сегодня.",
-  "Лезгинский язык ждет вас! Проведите 5 минут в приложении.",
-  "Не забывайте тренировать память — загляните в словарь.",
-  "Прогресс сам себя не сделает. Пора учиться!"
+  'Пора повторить слова!',
+  'У вас есть слова для повторения сегодня.',
+  'Лезгинский язык ждёт вас! Проведите 5 минут в приложении.',
+  'Не забывайте тренировать память — загляните в словарь.',
+  'Прогресс сам себя не сделает. Пора учиться!'
 ];
 
-async function getConfig(key) {
+async function withConfigStore(mode, callback) {
   return new Promise((resolve) => {
     const request = indexedDB.open('lezgi_db', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('config');
-    request.onsuccess = () => {
-      const db = request.result;
-      const tx = db.transaction('config', 'readonly');
-      const get = tx.objectStore('config').get(key);
-      get.onsuccess = () => resolve(get.result);
-      get.onerror = () => resolve(null);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('config')) {
+        request.result.createObjectStore('config');
+      }
     };
     request.onerror = () => resolve(null);
+    request.onsuccess = () => {
+      const db = request.result;
+      try {
+        const tx = db.transaction('config', mode);
+        const store = tx.objectStore('config');
+        callback(store, resolve);
+        tx.oncomplete = () => db.close();
+        tx.onerror = () => {
+          db.close();
+          resolve(null);
+        };
+      } catch (e) {
+        db.close();
+        resolve(null);
+      }
+    };
+  });
+}
+
+async function getConfig(key) {
+  return withConfigStore('readonly', (store, resolve) => {
+    const get = store.get(key);
+    get.onsuccess = () => resolve(get.result);
+    get.onerror = () => resolve(null);
   });
 }
 
 async function setConfig(key, value) {
-  return new Promise((resolve) => {
-    const request = indexedDB.open('lezgi_db', 1);
-    request.onupgradeneeded = () => request.result.createObjectStore('config');
-    request.onsuccess = () => {
-      const db = request.result;
-      const tx = db.transaction('config', 'readwrite');
-      tx.objectStore('config').put(value, key);
-      tx.oncomplete = () => resolve();
-    };
+  return withConfigStore('readwrite', (store, resolve) => {
+    const put = store.put(value, key);
+    put.onsuccess = () => resolve(true);
+    put.onerror = () => resolve(false);
   });
 }
 
@@ -104,123 +118,106 @@ async function checkAndNotify() {
   const today = now.toISOString().split('T')[0];
   const lastDate = await getConfig('last_notif_date');
 
-  // Проверка: время 18:00-21:00 и уведомление еще не отправлялось сегодня
   if (hour >= 18 && hour <= 21 && lastDate !== today) {
     const body = REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)];
-    
-    self.registration.showNotification("LezgiMez", {
-      body: body,
-      icon: "./icons/icon.svg",
-      badge: "./icons/icon.svg",
-      tag: "daily-reminder",
-      data: { url: "./index.html#vocabulary" }
+    await self.registration.showNotification('LezgiMez', {
+      body,
+      icon: './icons/icon.svg',
+      badge: './icons/icon.svg',
+      tag: 'daily-reminder',
+      data: { url: './index.html#vocabulary' }
     });
-
     await setConfig('last_notif_date', today);
   }
 }
 
-// Использование Periodic Background Sync
 self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'daily-reminder') {
-    event.waitUntil(checkAndNotify());
-  }
+  if (event.tag === 'daily-reminder') event.waitUntil(checkAndNotify());
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
+  const targetUrl = event.notification?.data?.url || './index.html#vocabulary';
+  const urlToOpen = new URL(targetUrl, self.location.origin).href;
 
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (let client of windowClients) {
-        if (client.url === urlToOpen && 'focus' in client) return client.focus();
-      }
-      if (clients.openWindow) return clients.openWindow(urlToOpen);
-    })
-  );
+  event.waitUntil((async () => {
+    const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windowClients) {
+      if (client.url === urlToOpen && 'focus' in client) return client.focus();
+    }
+    if (clients.openWindow) return clients.openWindow(urlToOpen);
+    return undefined;
+  })());
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      );
-    }).then(() => self.clients.claim())
-  );
-});
+async function putSuccessfulResponse(request, response) {
+  if (!response || response.status !== 200 || request.method !== 'GET') return;
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(request, response.clone());
+}
+
+function offlineResponse(message = 'Offline and not cached', status = 504) {
+  return new Response(message, {
+    status,
+    statusText: status === 503 ? 'Offline' : 'Offline and not cached',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+  });
+}
+
+async function networkFirst(request, fallbackRequest) {
+  try {
+    const response = await fetch(request);
+    await putSuccessfulResponse(request, response);
+    return response;
+  } catch (e) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    if (fallbackRequest) {
+      const fallback = await caches.match(fallbackRequest);
+      if (fallback) return fallback;
+    }
+    return offlineResponse();
+  }
+}
+
+async function networkFirstNoStore(request) {
+  try {
+    const response = await fetch(request, { cache: 'no-store' });
+    await putSuccessfulResponse(request, response);
+    return response;
+  } catch (e) {
+    const cached = await caches.match(request);
+    return cached || offlineResponse('', 504);
+  }
+}
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  if (request.method !== 'GET') return;
 
-  // Only handle same-origin requests — no CDN proxy
+  const url = new URL(request.url);
   if (url.origin !== location.origin) return;
 
-  // Audio files должны обновляться сразу, чтобы новые записи не заменялись старым кэшем
+  // Never cache serverless/report endpoints. Let the network/backend handle them.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.netlify/functions/')) return;
+
   if (url.pathname.endsWith('.wav')) {
-    event.respondWith(
-      fetch(event.request, { cache: 'no-store' })
-        .then((response) => {
-          if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cachedResponse = await caches.match(event.request);
-          if (cachedResponse) return cachedResponse;
-          throw new Error(`[SW] Audio request failed: ${event.request.url}`);
-        })
-    );
+    event.respondWith(networkFirstNoStore(request));
     return;
   }
 
-  // Network-first for navigate + data that changes
   if (
-    event.request.mode === 'navigate' ||
+    request.mode === 'navigate' ||
     url.pathname.endsWith('/index.html') ||
     url.pathname.endsWith('/words.json') ||
     url.pathname.endsWith('/grammar.json')
   ) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(event.request);
-          if (cached) return cached;
-          if (url.pathname.endsWith('/words.json')) return caches.match('./words.json');
-          if (url.pathname.endsWith('/grammar.json')) return caches.match('./grammar.json');
-          return caches.match('./index.html');
-        })
-    );
+    const fallback = url.pathname.endsWith('/words.json') ? './words.json'
+      : url.pathname.endsWith('/grammar.json') ? './grammar.json'
+        : './index.html';
+    event.respondWith(networkFirst(request, fallback));
     return;
   }
 
-  // All other local assets (CSS, fonts, icons, JS) use network-first strategy
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-        if (event.request.destination === 'document') {
-          return caches.match('./index.html');
-        }
-      })
-  );
+  event.respondWith(networkFirst(request, request.destination === 'document' ? './index.html' : undefined));
 });

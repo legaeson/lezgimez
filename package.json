@@ -1,20 +1,25 @@
 {
   "name": "lezgimez",
-  "version": "2.0.4",
-  "description": "Lezgian language learning PWA",
+  "version": "2.2.3",
+  "description": "Lezgian language learning PWA with dictionary, grammar, SRS and offline support",
   "main": "sw.js",
   "scripts": {
     "build": "tailwindcss -i input.css -o output.css --minify",
     "dev": "tailwindcss -i input.css -o output.css --watch",
+    "serve": "node scripts/serve.js",
     "validate": "node scripts/validate-words.js",
-    "test": "node test.js && npm run validate"
+    "test": "node test.js && npm run validate",
+    "quality": "npm test && npm run build",
+    "export": "node scripts/export.js"
   },
   "keywords": [
     "lezgi",
+    "lezgian",
     "pwa",
-    "learning"
+    "learning",
+    "srs"
   ],
-  "author": "",
+  "author": "LezgiMez",
   "license": "ISC",
   "devDependencies": {
     "tailwindcss": "^3.4.19"
