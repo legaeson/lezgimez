@@ -1,0 +1,12 @@
+<IfModule mod_mime.c>
+    AddType font/woff2 .woff2
+    AddType font/woff .woff
+    AddType font/ttf .ttf
+    AddType image/svg+xml .svg
+</IfModule>
+
+<FilesMatch "\.(woff2|woff|ttf|svg|eot)$">
+    <IfModule mod_headers.c>
+        Header set Access-Control-Allow-Origin "*"
+    </IfModule>
+</FilesMatch>

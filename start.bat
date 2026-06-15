@@ -1,2 +1,3 @@
 @echo off
-npm run serve
+call npm run serve
+pause
