@@ -8,3 +8,9 @@ versions/
 __pycache__/
 *.pyc
 inline.js
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
