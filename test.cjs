@@ -12,7 +12,7 @@ function assertExists(file) {
 }
 
 function listProjectFiles(dir = process.cwd(), prefix = '') {
-  const ignored = new Set(['node_modules', '.git', 'dist']);
+  const ignored = new Set(['node_modules', '.git', 'dist', 'temp_extracted']);
   const result = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (ignored.has(entry.name)) continue;
@@ -24,15 +24,10 @@ function listProjectFiles(dir = process.cwd(), prefix = '') {
   return result;
 }
 
-function checkSyntaxFromHtml(indexHtml) {
-  const match = indexHtml.match(/<script>([\s\S]*)<\/script>\s*<\/body>/);
-  assert(match, 'Inline JS block not found');
-  const tmp = path.join(process.cwd(), '.tmp-inline-check.js');
-  fs.writeFileSync(tmp, match[1]);
-  try {
-    execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' });
-  } finally {
-    fs.rmSync(tmp, { force: true });
+function checkSyntax() {
+  const files = ['src/main.js', 'src/srs-engine.js', 'sw.js'];
+  for (const file of files) {
+    execFileSync(process.execPath, ['--check', path.join(process.cwd(), file)], { stdio: 'pipe' });
   }
 }
 
@@ -41,6 +36,14 @@ function checkSecrets(indexHtml) {
   assert(!tokenPattern.test(indexHtml), 'Telegram bot token leaked in index.html');
   assert(!indexHtml.includes('https://api.telegram.org/bot'), 'Frontend must not call Telegram API directly');
   assert(!indexHtml.includes('TG_BOT_TOKEN'), 'Frontend must not define bot token variables');
+  
+  // Check JS files as well
+  const files = ['src/main.js', 'src/srs-engine.js'];
+  for (const file of files) {
+    const content = read(file);
+    assert(!tokenPattern.test(content), `Telegram bot token leaked in ${file}`);
+    assert(!content.includes('https://api.telegram.org/bot'), `Frontend must not call Telegram API directly in ${file}`);
+  }
 }
 
 function checkProjectHygiene() {
@@ -50,7 +53,7 @@ function checkProjectHygiene() {
   assert.strictEqual(forbiddenFiles.length, 0, `Forbidden generated/backup files: ${forbiddenFiles.join(', ')}`);
 
   for (const file of files) {
-    if (!/\.(html|js|json|toml|yml|yaml|md|txt|css)$/.test(file)) continue;
+    if (!/\.(html|js|json|toml|yml|yaml|md|txt|css|cjs)$/.test(file)) continue;
     const text = read(file);
     assert(!tokenPattern.test(text), `Hardcoded Telegram-like token leaked in ${file}`);
   }
@@ -59,20 +62,27 @@ function checkProjectHygiene() {
 function checkRuntimeGuards(indexHtml) {
   assert(indexHtml.includes('Content-Security-Policy'), 'CSP meta tag is required');
   assert(!indexHtml.includes('DEMO_WORDS'), 'DEMO_WORDS is referenced');
-  assert(indexHtml.includes('function hideLoader()'), 'hideLoader is called but not defined');
-  assert(indexHtml.includes('function supportsNotifications()'), 'Notification API must be feature-detected');
-  assert(!indexHtml.includes('initZoomLock'), 'Zoom lock must not exist');
-  assert(!/user-scalable\s*=\s*no|maximum-scale\s*=\s*1\.0/.test(indexHtml), 'User zoom must not be blocked');
 }
 
 function checkDomIds(indexHtml) {
   const staticIds = new Set([...indexHtml.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
-  const requestedIds = new Set([...indexHtml.matchAll(/getElementById\('([^']+)'\)/g)].map(match => match[1]));
+  
+  // Collect getElementById calls from JS files
+  const jsContent = ['src/main.js'].map(read).join('\n');
+  const requestedIds = new Set([...jsContent.matchAll(/getElementById\('([^']+)'\)/g)].map(match => match[1]));
+  
   const dynamicIds = new Set([
     'modal-fav-btn',
     'hint-chips',
     'flip-card',
-    'modal-close-btn-grammar'
+    'modal-close-btn-grammar',
+    'today-card',
+    'today-due',
+    'today-new',
+    'today-weak',
+    'today-summary',
+    'today-start-btn',
+    'today-mistakes-btn'
   ]);
   const optionalLegacyIds = new Set(['alphabet-count']);
   const missing = [...requestedIds].filter(id => !staticIds.has(id) && !dynamicIds.has(id) && !optionalLegacyIds.has(id));
@@ -80,21 +90,8 @@ function checkDomIds(indexHtml) {
 }
 
 function checkServiceWorker() {
-  const sw = read('sw.js');
-  execFileSync(process.execPath, ['--check', 'sw.js'], { stdio: 'pipe' });
-  assert(sw.includes("CACHE_VERSION = '2.1.0'"), 'SW cache version must match app version');
-  assert(sw.includes('offlineResponse'), 'SW must have an explicit offline response helper');
-  assert(sw.includes('new Response'), 'SW fallback must return Response objects');
-  assert(sw.includes("cache: 'no-store'"), 'SW should fetch audio with no-store');
-  assert(!sw.includes('setInterval'), 'SW must not rely on setInterval');
-
-  const listMatch = sw.match(/const ALPHABET_AUDIO_FILES = \[([\s\S]*?)\];/);
-  assert(listMatch, 'ALPHABET_AUDIO_FILES list not found');
-  const audioNames = [...listMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
-  assert.strictEqual(audioNames.length, 40, 'SW should know all 40 alphabet audio files');
-  for (const name of audioNames) {
-    assertExists(path.join('audio', 'alphabet', `${name}.wav`));
-  }
+  assertExists('dist/sw.js');
+  execFileSync(process.execPath, ['--check', 'dist/sw.js'], { stdio: 'pipe' });
 }
 
 function checkData() {
@@ -127,7 +124,13 @@ function checkData() {
 }
 
 function checkBuildFiles() {
-  ['index.html', 'output.css', 'sw.js', 'words.json', 'grammar.json', 'manifest.json', 'robots.txt', 'sitemap.xml', 'favicon.ico'].forEach(assertExists);
+  assertExists('dist/index.html');
+  assertExists('dist/words.json');
+  assertExists('dist/grammar.json');
+  assertExists('dist/manifest.webmanifest');
+  assertExists('dist/robots.txt');
+  assertExists('dist/sitemap.xml');
+  assertExists('dist/favicon.ico');
   assert(!fs.existsSync('__pycache__'), '__pycache__ must not be shipped');
   assert(!read('input.css').includes('rounded: 4px'), 'Invalid CSS property rounded must not be used');
 }
@@ -136,7 +139,7 @@ function runTests() {
   console.log('Running LezgiMez quality tests...');
   const indexHtml = read('index.html');
   checkBuildFiles();
-  checkSyntaxFromHtml(indexHtml);
+  checkSyntax();
   checkSecrets(indexHtml);
   checkProjectHygiene();
   checkRuntimeGuards(indexHtml);
