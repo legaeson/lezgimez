@@ -1090,12 +1090,9 @@
         <div id="screen-practice" class="app-screen px-5 pt-6 pb-20">
             <!-- Main Practice View -->
             <div id="practice-main-view">
-                <div class="text-center mb-8">
-                    <div class="mb-4">
-                        <i class="fa-solid fa-graduation-cap text-emerald-400 text-5xl"></i>
-                    </div>
-                    <h1 class="text-4xl font-bold tracking-tighter text-emerald-900">Практика</h1>
-                    <p class="text-slate-500 mt-2 text-sm max-w-[240px] mx-auto">Выберите режим и тренируйте память</p>
+                <div class="mb-6">
+                    <h1 class="text-5xl font-bold tracking-tighter text-emerald-900">Практика</h1>
+                    <p class="text-sm text-slate-500 mt-1">Выберите режим и тренируйте память</p>
                 </div>
 
 
@@ -1333,7 +1330,7 @@
                                 <i class="fa-solid fa-globe w-5 text-emerald-600"></i>
                                 <span>Версия приложения</span>
                             </div>
-                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.2.6</span>
+                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.2.7</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-t mt-3 pt-3 border-slate-100">
                             <div class="flex items-center gap-x-3">
@@ -1842,30 +1839,6 @@
             updateStatsUI();
         }
 
-        function createProgressBadge(id) {
-            const srs = PROGRESS.srs[id];
-            const span = document.createElement('span');
-            span.className = 'text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border align-middle transition-colors';
-
-            if (!srs || srs.ivl === 0) {
-                span.classList.add('border-slate-200/60', 'bg-slate-50', 'text-slate-500');
-                span.textContent = 'Новое';
-                return span;
-            }
-
-            const now = Date.now();
-            if (srs.next <= now && srs.ivl > 0) {
-                span.classList.add('border-amber-200', 'bg-amber-50', 'text-amber-600');
-                span.textContent = 'Повторить';
-            } else if (srs.ivl >= 3) {
-                span.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-600');
-                span.innerHTML = '<i class="fa-solid fa-check mr-1 text-[9px]"></i>Закреплено';
-            } else if (srs.ivl > 0) {
-                span.classList.add('border-blue-200', 'bg-blue-50', 'text-blue-600');
-                span.textContent = 'Изучается';
-            }
-            return span;
-        }
         function updateStatsUI() {
             const learnedEl = document.getElementById('stats-learned');
             const inProgressEl = document.getElementById('stats-in-progress');
@@ -2798,7 +2771,7 @@
                 cat.className = 'text-[10px] text-slate-400 font-bold uppercase tracking-wider';
                 cat.textContent = word.cat;
 
-                metaWrap.append(cat, createProgressBadge(word.id));
+                metaWrap.append(cat);
                 content.append(lzWrap, metaWrap);
 
                 const right = document.createElement('div');
@@ -2876,7 +2849,7 @@
             const catSpan = document.createElement('div');
             catSpan.className = 'uppercase tracking-[1.5px] text-emerald-600 text-sm font-bold';
             catSpan.textContent = word.cat;
-            catRow.append(catSpan, createProgressBadge(word.id));
+            catRow.append(catSpan);
             const h1 = document.createElement('div');
             h1.className = 'text-[42px] leading-none font-bold text-emerald-900 mt-1 lezgin-text';
             h1.textContent = word.lz;
