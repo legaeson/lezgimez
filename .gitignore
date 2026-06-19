@@ -8,3 +8,4 @@ versions/
 __pycache__/
 *.pyc
 inline.js
+*.bat
