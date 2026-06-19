@@ -28,6 +28,20 @@
     <link rel="stylesheet" href="./output.css">
     <link rel="stylesheet" href="./fa/all.min.css">
     <style>
+        /* ========== БЛОКИРОВКА ВЫДЕЛЕНИЯ ТЕКСТА ========== */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        input, textarea, [contenteditable="true"] {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
         /* ========== АНИМАЦИИ ========== */
 
         /* Fade + Slide Up — для карточек */
@@ -5884,6 +5898,23 @@
 
         // ==================== END COURSE ENGINE ====================
 
+
+        // Блокировка масштабирования пальцами (pinch-to-zoom)
+        document.addEventListener('touchstart', function (event) {
+            if (event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        // Блокировка двойного тапа для зума
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
 
         document.addEventListener('DOMContentLoaded', init);
     </script>
