@@ -1,4 +1,4 @@
-const CACHE_VERSION = '2.1.1';
+const CACHE_VERSION = '2.2.8';
 const CACHE_NAME = `lezgimez-pwa-v${CACHE_VERSION}`;
 
 const ALPHABET_AUDIO_FILES = [
@@ -31,7 +31,7 @@ const NON_CRITICAL_ASSETS = [
   './fa/webfonts/fa-brands-400.woff2'
 ];
 
-const AUDIO_ASSETS = ALPHABET_AUDIO_FILES.map(letter => `./audio/alphabet/${letter}.wav`);
+const AUDIO_ASSETS = ALPHABET_AUDIO_FILES.map(letter => `./audio/alphabet/${letter}.mp3`);
 
 async function cacheAssets(cache, assets) {
   await Promise.allSettled(
@@ -190,6 +190,17 @@ async function networkFirstNoStore(request) {
     return cached || offlineResponse('', 504);
   }
 }
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    await putSuccessfulResponse(request, response);
+    return response;
+  } catch (e) {
+    return offlineResponse();
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -201,8 +212,8 @@ self.addEventListener('fetch', (event) => {
   // Never cache serverless/report endpoints. Let the network/backend handle them.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.netlify/functions/')) return;
 
-  if (url.pathname.endsWith('.wav')) {
-    event.respondWith(networkFirstNoStore(request));
+  if (url.pathname.endsWith('.mp3')) {
+    event.respondWith(cacheFirst(request));
     return;
   }
 

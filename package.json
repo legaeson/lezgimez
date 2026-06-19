@@ -1,6 +1,6 @@
 {
   "name": "lezgimez",
-  "version": "2.2.7",
+  "version": "2.2.8",
   "description": "Lezgian language learning PWA with dictionary, grammar, SRS and offline support",
   "main": "sw.js",
   "scripts": {

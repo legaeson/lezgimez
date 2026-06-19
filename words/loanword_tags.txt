@@ -3,7 +3,6 @@
 # PT/AT = персидское/арабское слово, видоизменённое в тюркском
 
 w1_dobroe_utro A
-w5_pozhaluysta_prosba AT
 w18_syn P
 w29_vremya A
 w31_zavtra P
@@ -259,7 +258,6 @@ w687_miska P
 w688_mishen A
 w689_mnenie A
 w692_molodets AP
-w696_molba A
 w699_mramor A
 w700_muzhchina A
 w703_naves PT

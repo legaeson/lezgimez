@@ -49,9 +49,24 @@ for (const file of hostingFilesToCopy) {
     }
 }
 
+function copyDirRecursive(src, dest) {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+        if (entry.isDirectory()) {
+            copyDirRecursive(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
+
 for (const folder of foldersToCopy) {
-    if (fs.existsSync(path.join(root, folder))) {
-        fs.cpSync(path.join(root, folder), path.join(dist, folder), { recursive: true });
+    const srcFolder = path.join(root, folder);
+    const destFolder = path.join(dist, folder);
+    if (fs.existsSync(srcFolder)) {
+        copyDirRecursive(srcFolder, destFolder);
     }
 }
 

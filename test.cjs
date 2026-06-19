@@ -82,7 +82,7 @@ function checkDomIds(indexHtml) {
 function checkServiceWorker() {
   const sw = read('sw.js');
   execFileSync(process.execPath, ['--check', 'sw.js'], { stdio: 'pipe' });
-  assert(sw.includes("CACHE_VERSION = '2.1.0'"), 'SW cache version must match app version');
+  assert(sw.includes("CACHE_VERSION = '2.2.8'"), 'SW cache version must match app version');
   assert(sw.includes('offlineResponse'), 'SW must have an explicit offline response helper');
   assert(sw.includes('new Response'), 'SW fallback must return Response objects');
   assert(sw.includes("cache: 'no-store'"), 'SW should fetch audio with no-store');
@@ -93,7 +93,7 @@ function checkServiceWorker() {
   const audioNames = [...listMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
   assert.strictEqual(audioNames.length, 40, 'SW should know all 40 alphabet audio files');
   for (const name of audioNames) {
-    assertExists(path.join('audio', 'alphabet', `${name}.wav`));
+    assertExists(path.join('audio', 'alphabet', `${name}.mp3`));
   }
 }
 
