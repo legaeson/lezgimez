@@ -5655,177 +5655,87 @@
         // ---- CLASSIFYING ----
         function renderCourseClassifying(body, ex) {
             const wrap = document.createElement('div');
+            wrap.className = 'flex flex-col h-full justify-between';
 
+            const topSection = document.createElement('div');
+            
             const prompt = document.createElement('div');
-            prompt.className = 'text-lg font-bold text-slate-800 mb-4';
-            prompt.textContent = ex.prompt || 'Распредели по группам';
-
-            // Category headers
-            const catHeaders = document.createElement('div');
-            catHeaders.className = 'grid gap-3 mb-4';
-            catHeaders.style.gridTemplateColumns = `repeat(${ex.categories.length}, 1fr)`;
-
-            const catDropZones = [];
-            ex.categories.forEach((cat, ci) => {
-                const zone = document.createElement('div');
-                zone.className = 'bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-3 min-h-[100px]';
-                zone.dataset.cat = ci;
-                const label = document.createElement('div');
-                label.className = 'text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center';
-                label.textContent = cat;
-                zone.appendChild(label);
-                catHeaders.appendChild(zone);
-                catDropZones.push(zone);
-            });
-
-            // Items pool
-            const itemsPool = document.createElement('div');
-            itemsPool.className = 'flex flex-wrap gap-2 justify-center mb-4';
+            prompt.className = 'text-lg font-bold text-slate-800 mb-6 text-center px-4';
+            prompt.textContent = ex.prompt || 'К какой категории относится?';
+            topSection.appendChild(prompt);
 
             const shuffledItems = shuffle([...ex.items]);
-            const placements = {}; // text -> catIdx
+            let currentIndex = 0;
+            let madeMistake = false;
 
-            function renderItems() {
-                itemsPool.innerHTML = '';
-                shuffledItems.forEach(item => {
-                    if (placements[item.text] !== undefined) return;
-                    const chip = document.createElement('button');
-                    chip.className = 'px-4 py-2 bg-white border-2 border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 hover:border-emerald-300 active:scale-95 transition-all';
-                    chip.textContent = item.text;
-                    chip.addEventListener('click', () => {
-                        // If only 2 categories, toggle between them
-                        if (ex.categories.length === 2) {
-                            // Find which category to put it in by click count
-                            if (!chip._clickCat) chip._clickCat = 0;
-                            placements[item.text] = chip._clickCat;
-                            addToZone(item.text, chip._clickCat);
-                            chip._clickCat = (chip._clickCat + 1) % 2;
-                        }
-                    });
-                    itemsPool.appendChild(chip);
-                });
-            }
+            const itemContainer = document.createElement('div');
+            itemContainer.className = 'flex justify-center items-center py-8 mb-6 px-4';
+            topSection.appendChild(itemContainer);
 
-            function addToZone(text, catIdx) {
-                const zone = catDropZones[catIdx];
-                const chip = document.createElement('button');
-                chip.className = 'px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 mr-1 mb-1 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors';
-                chip.textContent = text;
-                chip.addEventListener('click', () => {
-                    delete placements[text];
-                    chip.remove();
-                    renderItems();
-                });
-                zone.appendChild(chip);
-                renderItems();
-            }
+            wrap.appendChild(topSection);
 
-            // Check button
-            const checkBtn = document.createElement('button');
-            checkBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base transition-colors mt-2';
-            checkBtn.textContent = 'Проверить';
-            checkBtn.addEventListener('click', () => {
-                let allCorrect = true;
-                let allPlaced = Object.keys(placements).length === ex.items.length;
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'flex flex-col gap-3 pb-4 px-4';
+            wrap.appendChild(buttonsContainer);
 
-                if (!allPlaced) {
-                    // Highlight items pool
-                    itemsPool.className = 'flex flex-wrap gap-2 justify-center mb-4 animate-shake';
-                    setTimeout(() => { itemsPool.className = 'flex flex-wrap gap-2 justify-center mb-4'; }, 500);
+            function renderCurrentItem() {
+                itemContainer.innerHTML = '';
+                buttonsContainer.innerHTML = '';
+
+                if (currentIndex >= shuffledItems.length) {
+                    const doneMsg = document.createElement('div');
+                    doneMsg.className = 'text-2xl font-bold text-emerald-600 animate-bounce text-center';
+                    doneMsg.textContent = 'Отлично!';
+                    itemContainer.appendChild(doneMsg);
+                    setTimeout(() => courseNextExercise(!madeMistake), 1000);
                     return;
                 }
 
-                ex.items.forEach(item => {
-                    if (placements[item.text] !== item.category) {
-                        allCorrect = false;
-                    }
-                });
+                const item = shuffledItems[currentIndex];
 
-                // Show result
-                catDropZones.forEach((zone, ci) => {
-                    zone.querySelectorAll('button').forEach(chip => {
-                        const item = ex.items.find(it => it.text === chip.textContent);
-                        if (item && item.category === ci) {
-                            chip.className = 'px-3 py-1.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-semibold text-emerald-700 mr-1 mb-1 pointer-events-none';
-                        } else {
-                            chip.className = 'px-3 py-1.5 bg-red-50 border border-red-300 rounded-xl text-xs font-semibold text-red-700 mr-1 mb-1 pointer-events-none';
-                        }
-                    });
-                });
+                const card = document.createElement('div');
+                card.className = 'px-8 py-10 bg-white border-2 border-slate-200 rounded-3xl text-2xl font-bold text-slate-800 shadow-sm text-center w-full max-w-sm';
+                card.textContent = item.text;
+                itemContainer.appendChild(card);
 
-                checkBtn.disabled = true;
-                setTimeout(() => courseNextExercise(allCorrect), 1400);
-            });
-
-            // For 2 categories: clicking an item in pool places it alternately
-            // Need category selector buttons instead
-            if (ex.categories.length === 2) {
-                // Replace click behavior: clicking item shows two category buttons
-                itemsPool.innerHTML = '';
-                let currentItem = null;
-
-                function renderItemsWithSelector() {
-                    itemsPool.innerHTML = '';
-                    shuffledItems.forEach(item => {
-                        if (placements[item.text] !== undefined) return;
-                        const chip = document.createElement('button');
-                        chip.className = 'px-4 py-2 bg-white border-2 border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 hover:border-emerald-300 active:scale-95 transition-all';
-                        chip.textContent = item.text;
-                        chip.addEventListener('click', () => {
-                            // Highlight selected
-                            itemsPool.querySelectorAll('button').forEach(b => {
-                                b.classList.remove('border-emerald-500', 'bg-emerald-50');
-                                b.classList.add('border-slate-200', 'bg-white');
-                            });
-                            chip.classList.remove('border-slate-200', 'bg-white');
-                            chip.classList.add('border-emerald-500', 'bg-emerald-50');
-                            currentItem = item;
-                            catSelector.classList.remove('hidden');
-                        });
-                        itemsPool.appendChild(chip);
-                    });
-                    if (Object.keys(placements).length === ex.items.length) {
-                        catSelector.classList.add('hidden');
-                    }
-                }
-
-                const catSelector = document.createElement('div');
-                catSelector.className = 'grid grid-cols-2 gap-2 mb-4 hidden';
                 ex.categories.forEach((cat, ci) => {
                     const btn = document.createElement('button');
-                    btn.className = 'py-3 border-2 border-slate-200 rounded-2xl text-sm font-bold text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 active:scale-95 transition-all';
-                    btn.textContent = `→ ${cat}`;
+                    btn.className = 'w-full py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-bold text-slate-700 active:scale-95 transition-all shadow-sm';
+                    btn.textContent = cat;
                     btn.addEventListener('click', () => {
-                        if (!currentItem) return;
-                        placements[currentItem.text] = ci;
-                        addToZone2(currentItem.text, ci);
-                        currentItem = null;
-                        catSelector.classList.add('hidden');
-                        renderItemsWithSelector();
+                        const allBtns = buttonsContainer.querySelectorAll('button');
+                        allBtns.forEach(b => b.disabled = true);
+
+                        if (item.category === ci) {
+                            btn.className = 'w-full py-4 bg-emerald-500 border-2 border-emerald-600 rounded-2xl text-base font-bold text-white transition-all shadow-sm';
+                            card.className = 'px-8 py-10 bg-emerald-50 border-2 border-emerald-300 rounded-3xl text-2xl font-bold text-emerald-700 shadow-sm transition-all scale-105 text-center w-full max-w-sm';
+                            
+                            setTimeout(() => {
+                                currentIndex++;
+                                renderCurrentItem();
+                            }, 600);
+                        } else {
+                            madeMistake = true;
+                            btn.className = 'w-full py-4 bg-red-500 border-2 border-red-600 rounded-2xl text-base font-bold text-white animate-shake transition-all shadow-sm';
+                            card.className = 'px-8 py-10 bg-red-50 border-2 border-red-300 rounded-3xl text-2xl font-bold text-red-700 shadow-sm transition-all text-center w-full max-w-sm animate-shake';
+                            
+                            setTimeout(() => {
+                                allBtns.forEach(b => b.disabled = false);
+                                btn.className = 'w-full py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-bold text-slate-700 active:scale-95 transition-all shadow-sm';
+                                card.className = 'px-8 py-10 bg-white border-2 border-slate-200 rounded-3xl text-2xl font-bold text-slate-800 shadow-sm text-center w-full max-w-sm';
+                            }, 800);
+                        }
                     });
-                    catSelector.appendChild(btn);
+                    buttonsContainer.appendChild(btn);
                 });
-
-                function addToZone2(text, catIdx) {
-                    const zone = catDropZones[catIdx];
-                    const chip = document.createElement('button');
-                    chip.className = 'px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 mr-1 mb-1 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors';
-                    chip.textContent = text;
-                    chip.addEventListener('click', () => {
-                        delete placements[text];
-                        chip.remove();
-                        renderItemsWithSelector();
-                    });
-                    zone.appendChild(chip);
-                }
-
-                renderItemsWithSelector();
-                wrap.append(prompt, catHeaders, itemsPool, catSelector, checkBtn);
-            } else {
-                renderItems();
-                wrap.append(prompt, catHeaders, itemsPool, checkBtn);
+                
+                const progressText = document.createElement('div');
+                progressText.className = 'text-sm font-semibold text-slate-400 text-center mt-4 mb-2';
+                progressText.textContent = `${currentIndex + 1} / ${shuffledItems.length}`;
+                buttonsContainer.appendChild(progressText);
             }
 
+            renderCurrentItem();
             body.appendChild(wrap);
         }
 
