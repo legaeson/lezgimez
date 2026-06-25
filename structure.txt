@@ -1,0 +1,862 @@
+2 function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]] } return arr }
+5 function staggerCards(container) {
+6 const children = container.children;
+8 const el = children[i];
+9 const delay = Math.min(i, 14) * 0.015;
+20 const AUDIO_ASSET_VERSION = '2026-05-27-2';
+21 const PRELOADED_AUDIO = {};
+22 const AUDIO_PLAYER = new Audio();
+24 function getVersionedAudioUrl(audioPath) {
+25 const url = new URL(audioPath, window.location.href);
+32 function speakWord(text, audioPath) {
+34 const versionedUrl = getVersionedAudioUrl(audioPath);
+35 const cachedUrl = PRELOADED_AUDIO[versionedUrl] || versionedUrl;
+46 function runFallbackSpeech(text) {
+47 const utter = new SpeechSynthesisUtterance(text);
+52 function vibrateError() {
+56 function vibrateSuccess() {
+60 function vibrateComplete() {
+66 let WORDS = [];
+67 let GRAMMAR = [];
+68 let COURSE = [];
+69 let COURSE_PROGRESS = { completedUnits: [], scores: {}, currentUnit: null };
+70 let courseExState = null; // state for course exercise session
+71 const APP_VERSION = '2.2.9';
+72 const DEBUG = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('debug=1');
+73 const log = (...args) => { if (DEBUG) console.log(...args); };
+74 const warn = (...args) => { if (DEBUG) console.warn(...args); };
+75 const ALPHABET_AUDIO_FILES = [
+81 let SEARCH_INDEX = [];
+82 let currentTab = 'alphabet';
+83 const PAGE_SIZE = 20;
+84 let loadedCount = 0;
+85 let currentFilter = { search: '', category: 'all' };
+86 let practiceCategory = 'all';
+87 const SCHEMA_VERSION = 1;
+88 let deferredPrompt = null;
+89 let tabSwitchGuard = false;
+91 const NICE_CATEGORY_NAMES = {
+106 const request = indexedDB.open('lezgi_db', 1);
+109 const db = request.result;
+110 const tx = db.transaction('config', 'readwrite');
+117 function supportsNotifications() {
+124 const registration = await navigator.serviceWorker.ready;
+127 const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+137 function updateNotifUI() {
+138 const bell = document.getElementById('notif-bell-icon');
+139 const statusText = document.getElementById('notif-status-text');
+154 const isEnabled = localStorage.getItem('lezgi_notif_enabled') === '1';
+171 const permission = await Notification.requestPermission();
+191 const newState = localStorage.getItem('lezgi_notif_enabled') === '1' ? '0' : '1';
+199 function dismissNotifBanner() {
+200 const banner = document.getElementById('notif-banner');
+205 let PROGRESS = {
+212 let saveProgressTimeout = null;
+213 function saveProgress(immediate = false) {
+215 const save = () => {
+227 function exportProgress() {
+228 const blob = new Blob([JSON.stringify(PROGRESS, null, 2)], { type: 'application/json' });
+229 const a = document.createElement('a');
+236 function validateProgressData(data) {
+256 const val = data.srs[key];
+258 const numeric = ['next', 'last', 'ivl', 'success', 'errors'];
+269 function knownWordIds() {
+273 function normalizeProgress(data) {
+274 const def = { favorites: [], learned: [], stats: { quizzes: 0, scoreSum: 0 }, srs: {} };
+276 const ids = knownWordIds();
+277 const filterIds = (arr) => Array.from(new Set((Array.isArray(arr) ? arr : [])
+281 const srs = {};
+282 const rawSrs = (data.srs && typeof data.srs === 'object' && !Array.isArray(data.srs)) ? data.srs : {};
+286 const next = Number(card.next || 0);
+287 const last = Number(card.last || 0);
+288 const ivl = Math.max(0, Math.min(3650, Number(card.ivl || 0)));
+289 const success = Math.max(0, Math.min(100000, Number(card.success || 0)));
+290 const errors = Math.max(0, Math.min(100000, Number(card.errors || 0)));
+291 const ease = Math.max(1.3, Math.min(3.2, Number(card.ease || 2.5)));
+308 function importProgress(file) {
+315 const reader = new FileReader();
+318 const data = JSON.parse(e.target.result);
+332 function loadProgress() {
+333 const saved = localStorage.getItem('lezgi_progress');
+343 function updateStatsUI() {
+344 const learnedEl = document.getElementById('stats-learned');
+345 const inProgressEl = document.getElementById('stats-in-progress');
+346 const notStartedEl = document.getElementById('stats-not-started');
+348 const favsEl = document.getElementById('stats-favs');
+349 const quizEl = document.getElementById('stats-quizzes');
+350 const avgScoreEl = document.getElementById('stats-avg-score');
+352 let learnedCount = 0;
+353 let inProgressCount = 0;
+354 let notStartedCount = 0;
+358 const srs = PROGRESS.srs[w.id];
+378 const avg = (PROGRESS.stats.scoreSum / PROGRESS.stats.quizzes).toFixed(1);
+387 const SRS_RATING = Object.freeze({ Again: 1, Hard: 2, Good: 3, Easy: 4 });
+389 function ensureSrsCard(wordId) {
+393 const card = PROGRESS.srs[wordId];
+401 function reviewSrsCard(wordId, rating, now = Date.now()) {
+402 const card = ensureSrsCard(wordId);
+432 function getLearningSnapshot() {
+433 const now = Date.now();
+434 const words = WORDS || [];
+435 const due = words.filter(w => PROGRESS.srs[w.id] && PROGRESS.srs[w.id].next <= now && PROGRESS.srs[w.id].ivl > 0);
+436 const fresh = words.filter(w => !PROGRESS.srs[w.id] || PROGRESS.srs[w.id].ivl === 0);
+437 const weak = words.filter(w => {
+438 const card = PROGRESS.srs[w.id];
+444 function updateTodayUI() {}
+446 function toggleFavorite(wordId, event) {
+448 const idx = PROGRESS.favorites.indexOf(wordId);
+461 const modal = document.getElementById('word-modal');
+464 const favBtn = document.getElementById('modal-fav-btn');
+466 const isFav = PROGRESS.favorites.includes(wordId);
+478 function installApp() {
+492 function showInstallInstructions() {
+493 const modal = document.getElementById('word-modal');
+494 const content = document.getElementById('modal-content');
+497 const wrap = document.createElement('div');
+500 const iconWrap = document.createElement('div');
+504 const h3 = document.createElement('h3');
+508 const p = document.createElement('p');
+512 const steps = document.createElement('div');
+515 const createStep = (num, text) => {
+516 const div = document.createElement('div');
+518 const n = document.createElement('div');
+521 const t = document.createElement('div');
+535 const footer = document.createElement('div');
+537 const okBtn = document.createElement('button');
+549 function checkForUpdates() {
+550 const icon = document.getElementById('update-check-icon');
+551 const status = document.getElementById('update-status');
+601 function showUpdateReady() {
+602 const status = document.getElementById('update-status');
+606 function registerSW() {
+618 const newWorker = registration.installing;
+633 const offlineBanner = document.getElementById('offline-banner');
+639 function normalizeLezgiSearch(value) {
+649 function rebuildSearchIndex() {
+656 function getSearchResults(words, query) {
+657 const normalized = normalizeLezgiSearch(query);
+661 const allowed = new Set(words.map(w => w.id));
+662 const matchedIds = new Set(SEARCH_INDEX
+665 const primaryResults = words.filter(w => matchedIds.has(w.id));
+668 const fallbackQuery = normalized
+675 const fallbackIds = new Set(SEARCH_INDEX
+678 const fallbackResults = words.filter(w => fallbackIds.has(w.id));
+687 function initSearchBehavior() {
+688 const searchInput = document.getElementById('search-input');
+689 const searchClear = document.getElementById('search-clear');
+692 let debounceTimer = null;
+709 function showFatalLoadError(message) {
+710 const loadingEl = document.getElementById('words-loading');
+711 const grid = document.getElementById('words-grid');
+712 const box = document.createElement('div');
+728 const res = await fetch(url, { cache: 'no-cache' });
+734 const loadingEl = document.getElementById('words-loading');
+757 function buildCategoryOptions() {
+758 let cats = [...new Set(WORDS.map(w => w.cat))];
+762 const vocabPanel = document.getElementById('category-filter-panel').querySelector('.scroll-area') || document.getElementById('category-filter-panel');
+763 const pracPanel = document.getElementById('practice-category-panel').querySelector('.scroll-area') || document.getElementById('practice-category-panel');
+768 const createOption = (val, display, type) => {
+769 const div = document.createElement('div');
+774 const name = document.createElement('span');
+777 const icon = document.createElement('i');
+779 const label = document.createElement('span');
+786 const count = document.createElement('span');
+800 const name = cat === 'all' ? 'Все' : (NICE_CATEGORY_NAMES[cat] || cat);
+814 const name = cat === 'all' ? 'Все слова' : (NICE_CATEGORY_NAMES[cat] || cat);
+827 function refreshCategoryCounters() {
+828 const updatePanel = (panelId, getCount) => {
+829 const panel = document.getElementById(panelId);
+831 const val = opt.dataset.value;
+832 const count = getCount(val);
+849 function syncSelectedCategoryUI() {
+850 const sync = (panelId, currentVal) => {
+851 const panel = document.getElementById(panelId);
+860 function setVocabularyCategory(val, display) {
+868 function setPracticeCategory(val, display) {
+870 const fullDisplay = val === 'all' ? `${display} (${WORDS.length})` : `${display} (${WORDS.filter(w => w.cat === val).length})`;
+877 function updatePracticeAvailability() {
+878 const cat = practiceCategory;
+879 const pool = cat === 'all' ? WORDS : WORDS.filter(w => w.cat === cat);
+880 const count = pool.length;
+882 const modes = [
+891 const el = document.getElementById(mode.id);
+894 const isAvailable = count >= mode.min;
+898 const infoText = el.querySelector('.text-sm');
+910 function updateVocabStats() {
+911 const statsEl = document.getElementById('vocab-stats');
+912 const countEl = document.getElementById('words-count');
+914 const catCount = [...new Set(WORDS.map(w => w.cat))].length;
+919 function toggleDropdown(wrapperId) {
+920 const wrapper = document.getElementById(wrapperId);
+921 const panel = wrapper.querySelector('.dropdown-panel');
+922 const trigger = wrapper.querySelector('.dropdown-trigger');
+923 const chevron = wrapper.querySelector('.fa-chevron-down');
+933 const isOpen = !panel.classList.contains('hidden');
+946 function closeDropdown(wrapperId) {
+947 const wrapper = document.getElementById(wrapperId);
+950 const panel = wrapper.querySelector('.dropdown-panel');
+951 const trigger = wrapper.querySelector('.dropdown-trigger');
+952 const chevron = wrapper.querySelector('.fa-chevron-down');
+959 const ALPHABET_RAW = [
+979 const ALPHABET = [];
+980 const seenLetters = new Set();
+989 function renderAlphabet() {
+990 const grid = document.getElementById('alphabet-grid');
+994 const main = item.letter.split(' ')[0];
+996 const card = document.createElement('div');
+1001 const mainEl = document.createElement('div');
+1018 function showAlphabetModal(item) {
+1019 const modal = document.getElementById('word-modal');
+1020 const content = document.getElementById('modal-content');
+1023 const main = item.letter.split(' ')[0];
+1024 const soundFile = main.toLowerCase().replace(/i/g, '1');
+1027 const allGraphemes = ALPHABET.map(l => l.letter.split(' ')[0]);
+1029 const longerGraphemes = allGraphemes.filter(g =>
+1034 const examples = WORDS.filter(w => {
+1035 const lz = w.lz.toLowerCase();
+1041 const body = document.createElement('div');
+1044 const header = document.createElement('div');
+1047 const left = document.createElement('div');
+1048 const catSpan = document.createElement('div');
+1052 const h1 = document.createElement('div');
+1057 const right = document.createElement('div');
+1058 const close = document.createElement('button');
+1066 const info = document.createElement('div');
+1069 const ipaWrap = document.createElement('div');
+1070 const ipaLabel = document.createElement('div');
+1073 const ipaText = document.createElement('div');
+1078 const playBtn = document.createElement('button');
+1089 const descBox = document.createElement('div');
+1098 const exSection = document.createElement('div');
+1100 const exHeader = document.createElement('div');
+1106 const exList = document.createElement('div');
+1110 const exCard = document.createElement('div');
+1114 const lCol = document.createElement('div');
+1115 const lz = document.createElement('div');
+1118 const prefixLen = main.length;
+1119 const prefixStr = w.lz.substring(0, prefixLen);
+1120 const restStr = w.lz.substring(prefixLen);
+1122 const highlighted = document.createElement('span');
+1127 const ru = document.createElement('div');
+1132 const icon = document.createElement('i');
+1140 const noEx = document.createElement('div');
+1153 const SHOW_VOCABULARY_IPA = false;
+1154 function renderWords(skipAnimation, append) {
+1155 const grid = document.getElementById('words-grid');
+1156 const countEl = document.getElementById('results-count');
+1157 const badge = document.getElementById('demo-badge');
+1158 const hintEl = document.getElementById('search-hint');
+1160 const isDemo = WORDS.length < 50;
+1161 const hasSearch = currentFilter.search.trim().length > 0;
+1162 let scopedWords = WORDS;
+1171 const searchState = getSearchResults(scopedWords, currentFilter.search);
+1172 const filtered = searchState.results;
+1190 const start = append ? loadedCount : 0;
+1191 const pageWords = filtered.slice(start, start + PAGE_SIZE);
+1199 let contextBanner = document.getElementById('vocab-context');
+1209 const b = document.createElement('strong');
+1214 const b = document.createElement('strong');
+1219 const wrapper = document.getElementById('category-filter-wrapper');
+1220 const catName = wrapper.querySelector('.dropdown-value').textContent;
+1222 const b = document.createElement('strong');
+1258 const isFav = PROGRESS.favorites.includes(word.id);
+1259 const card = document.createElement('div');
+1262 const content = document.createElement('div');
+1264 const lzWrap = document.createElement('div');
+1268 const metaWrap = document.createElement('div');
+1271 const cat = document.createElement('div');
+1278 const right = document.createElement('div');
+1280 const ru = document.createElement('div');
+1284 const bottom = document.createElement('div');
+1286 const fav = document.createElement('button');
+1292 const favIcon = document.createElement('i');
+1296 const ipa = document.createElement('span');
+1312 function renderLoadMore(total) {
+1313 const container = document.getElementById('pagination');
+1317 const done = document.createElement('div');
+1323 const nextBatch = Math.min(loadedCount + PAGE_SIZE, total);
+1324 const btn = document.createElement('button');
+1331 function showWordModal(wordId) {
+1332 const word = WORDS.find(w => w.id === wordId);
+1335 const modal = document.getElementById('word-modal');
+1336 const content = document.getElementById('modal-content');
+1339 const isFav = PROGRESS.favorites.includes(word.id);
+1341 const body = document.createElement('div');
+1344 const header = document.createElement('div');
+1347 const left = document.createElement('div');
+1348 const catRow = document.createElement('div');
+1350 const catSpan = document.createElement('div');
+1354 const h1 = document.createElement('div');
+1359 const right = document.createElement('div');
+1361 const fav = document.createElement('button');
+1365 const close = document.createElement('button');
+1372 const info = document.createElement('div');
+1374 const ru = document.createElement('div');
+1379 const ipa = document.createElement('div');
+1387 const ex = document.createElement('div');
+1393 const footer = document.createElement('div');
+1395 const add = document.createElement('button');
+1400 const reportBtn = document.createElement('button');
+1416 function showReportForm(word) {
+1417 const modal = document.getElementById('word-modal');
+1418 const content = document.getElementById('modal-content');
+1421 const wrap = document.createElement('div');
+1424 const iconWrap = document.createElement('div');
+1428 const h3 = document.createElement('h3');
+1432 const p = document.createElement('p');
+1436 const privacyNote = document.createElement('p');
+1441 const hintBox = document.createElement('div');
+1452 const form = document.createElement('form');
+1455 const textarea = document.createElement('textarea');
+1465 const chips = [
+1473 const chipsContainer = document.getElementById('hint-chips');
+1476 const btn = document.createElement('button');
+1490 const footer = document.createElement('div');
+1493 const cancelBtn = document.createElement('button');
+1498 const sendBtn = document.createElement('button');
+1504 const text = textarea.value.trim();
+1518 const payload = {
+1528 const endpoints = ['/api/report-word.php', '/api/report-word', '/.netlify/functions/report-word'];
+1529 let sent = false;
+1532 const response = await fetch(endpoint, {
+1565 function showReportSuccess(word) {
+1566 const content = document.getElementById('modal-content');
+1569 const wrap = document.createElement('div');
+1572 const iconWrap = document.createElement('div');
+1576 const h3 = document.createElement('h3');
+1580 const p = document.createElement('p');
+1584 const okBtn = document.createElement('button');
+1593 function isElementVisible(element) {
+1597 function closeModal() {
+1598 const modal = document.getElementById('word-modal');
+1607 const VALID_TABS = ['alphabet', 'vocabulary', 'course', 'practice', 'more'];
+1608 const SEEN_SCREENS = new Set(); // чтобы анимация входа была только один раз
+1609 let lastDialogTrigger = null;
+1611 function switchTab(tab) {
+1618 const prevTab = currentTab;
+1629 const prevScreen = document.getElementById(`screen-${prevTab}`);
+1630 const nextScreen = document.getElementById(`screen-${tab}`);
+1631 const mainEl = document.querySelector('main');
+1639 const firstVisit = !SEEN_SCREENS.has(tab);
+1655 const nav = document.querySelector('.bottom-nav');
+1680 const res = await fetch('grammar.json');
+1687 const practiceGrammarView = document.getElementById('practice-grammar-view');
+1694 function showGrammarList() {
+1701 function hideGrammarList() {
+1706 function grammarLevelLabel(level) {
+1707 const map = { beginner: 'Начальный', intermediate: 'Средний', advanced: 'Продвинутый' };
+1711 function renderGrammar() {
+1712 const grid = document.getElementById('grammar-units-grid');
+1713 const stats = document.getElementById('grammar-stats');
+1725 const card = document.createElement('div');
+1728 const left = document.createElement('div');
+1729 const id = document.createElement('div');
+1732 const title = document.createElement('div');
+1735 const meta = document.createElement('div');
+1740 const icon = document.createElement('div');
+1752 function showGrammarUnit(unitId) {
+1753 const unit = GRAMMAR.find(u => u.id === unitId);
+1756 const modal = document.getElementById('word-modal');
+1757 const content = document.getElementById('modal-content');
+1760 const topBar = document.createElement('div');
+1767 const body = document.createElement('div');
+1771 const id = document.createElement('div');
+1774 const title = document.createElement('h2');
+1778 const theory = document.createElement('div');
+1784 const footer = document.createElement('div');
+1787 const startBtn = document.createElement('button');
+1805 function escapeHtml(text = '') {
+1814 function formatInlineMarkdown(text = '') {
+1815 let html = escapeHtml(text);
+1847 function renderListBlock(block, ordered = false) {
+1848 const lines = block.split('\n').map(line => line.trimEnd()).filter(line => line.trim().length > 0);
+1849 const marker = ordered ? /^\d+\.\s+/ : /^[-*]\s+/;
+1850 const items = [];
+1851 let current = null;
+1853 function flushCurrent() {
+1859 const line = rawLine.trim();
+1878 const tag = ordered ? 'ol' : 'ul';
+1879 const isExamples = !ordered && items.every(item => item.includes(' — '));
+1880 const cls = ordered ? 'grammar-ol' : (isExamples ? 'grammar-ul grammar-examples' : 'grammar-ul');
+1882 const itemsHtml = items.map(item => {
+1883 const parts = item.split(/\n(?=[-*]\s+)/).filter(Boolean);
+1884 const main = parts.shift() || '';
+1885 const mainHtml = formatInlineMarkdown(main);
+1891 const subItems = parts
+1903 function renderTableBlock(lines) {
+1906 const headerLine = lines[0];
+1907 const headers = headerLine.split('|').map(cell => cell.trim()).filter(Boolean);
+1909 let html = '<div class="grammar-table-wrapper"><table class="grammar-table"><thead><tr>';
+1916 const rowLine = lines[j];
+1917 const cells = rowLine.split('|').map(cell => cell.trim()).filter(Boolean);
+1930 function renderMarkdownBlock(block) {
+1962 function simpleMarkdown(md) {
+1964 const normalized = String(md).replace(/\r\n/g, '\n').trim();
+1966 const lines = normalized.split('\n');
+1967 const rendered = [];
+1968 const paragraphLines = [];
+1970 function flushParagraph() {
+1976 let i = 0;
+1978 const rawLine = lines[i];
+1979 const line = rawLine.trim();
+1996 const tableLines = [];
+2007 const listLines = [];
+2009 const current = lines[i].trim();
+2029 const listLines = [];
+2031 const current = lines[i].trim();
+2057 function startGrammarQuiz(unitId) {
+2058 const unit = GRAMMAR.find(u => u.id === unitId);
+2071 function showGrammarQuestion() {
+2072 const modal = document.getElementById('practice-modal');
+2073 const content = document.getElementById('practice-content');
+2074 const q = practiceState.exercises[practiceState.idx];
+2077 const progress = Math.round((practiceState.idx / practiceState.exercises.length) * 100);
+2079 const header = document.createElement('div');
+2081 const hTitle = document.createElement('div');
+2084 const close = document.createElement('button');
+2090 const body = document.createElement('div');
+2093 const qNum = document.createElement('div');
+2097 const qText = document.createElement('div');
+2101 const optsWrap = document.createElement('div');
+2105 const b = document.createElement('button');
+2108 const keyCircle = document.createElement('div');
+2112 const valText = document.createElement('div');
+2121 const progWrap = document.createElement('div');
+2123 const progBg = document.createElement('div');
+2125 const progBar = document.createElement('div');
+2138 function checkGrammarAnswer(selected, correct, explanation, btn) {
+2139 const allBtns = btn.parentElement.querySelectorAll('button');
+2142 const isCorrect = selected === correct;
+2147 const circle = btn.querySelector('div');
+2155 const key = b.querySelector('div').textContent;
+2166 const expl = document.createElement('div');
+2169 const resultStrong = document.createElement('strong');
+2174 const nextBtn = document.createElement('button');
+2190 const SHOW_PRACTICE_IPA = false;
+2191 let practiceState = { words: [], idx: 0, score: 0, mode: '' };
+2192 function startFlashcards() {
+2193 const pool = practiceCategory === 'all' ? WORDS : WORDS.filter(w => w.cat === practiceCategory);
+2194 const now = Date.now();
+2196 let due = pool.filter(w => PROGRESS.srs[w.id] && PROGRESS.srs[w.id].next <= now && PROGRESS.srs[w.id].ivl > 0)
+2198 let unknown = shuffle(pool.filter(w => !PROGRESS.srs[w.id] || PROGRESS.srs[w.id].ivl === 0));
+2200 const targetSessionSize = 25; // Увеличим размер сессии для удобства
+2202 let initialWords = due.slice(0, targetSessionSize);
+2229 let flashcardKeydownHandler = null;
+2231 function showFlashcard() {
+2232 const modal = document.getElementById('practice-modal');
+2233 const content = document.getElementById('practice-content');
+2236 const MAX_ATTEMPTS = practiceState.words.length * 3;
+2243 const w = practiceState.queue[0];
+2244 const total = practiceState.words.length;
+2245 const learned = practiceState.learnedInSession.size;
+2246 const progress = Math.round((learned / total) * 100);
+2248 const header = document.createElement('div');
+2250 const hTitle = document.createElement('div');
+2253 const close = document.createElement('button');
+2259 const body = document.createElement('div');
+2262 const flip = document.createElement('div');
+2265 const inner = document.createElement('div');
+2268 const front = document.createElement('div');
+2270 const fTop = document.createElement('div');
+2273 const fWord = document.createElement('div');
+2278 const ipa = document.createElement('div');
+2284 const back = document.createElement('div');
+2286 const bTop = document.createElement('div');
+2289 const bWord = document.createElement('div');
+2294 const ex = document.createElement('div');
+2304 const actions = document.createElement('div');
+2307 const createBtn = (cls, icon, txt, mode) => {
+2308 const b = document.createElement('button');
+2321 const progWrap = document.createElement('div');
+2323 const progBg = document.createElement('div');
+2325 const progBar = document.createElement('div');
+2329 const queueInfo = document.createElement('div');
+2348 const isFlashcard = document.getElementById('flip-card');
+2358 function markCard(status) {
+2359 const w = practiceState.queue.shift();
+2366 const isFirstSeen = !practiceState.seenInSession.has(w.id);
+2384 const idx = PROGRESS.learned.indexOf(w.id);
+2392 function startQuiz() {
+2393 const pool = practiceCategory === 'all' ? WORDS : WORDS.filter(w => w.cat === practiceCategory);
+2403 function showQuizQuestion() {
+2404 const modal = document.getElementById('practice-modal');
+2405 const content = document.getElementById('practice-content');
+2406 const w = practiceState.words[practiceState.idx];
+2409 const progress = Math.round((practiceState.idx / practiceState.words.length) * 100);
+2410 const allRu = WORDS.map(x => x.ru);
+2411 let opts = [w.ru];
+2413 const r = allRu[Math.floor(Math.random() * allRu.length)];
+2418 const header = document.createElement('div');
+2420 const hTitle = document.createElement('div');
+2423 const close = document.createElement('button');
+2429 const body = document.createElement('div');
+2431 const qWrap = document.createElement('div');
+2433 const qTop = document.createElement('div');
+2436 const qWord = document.createElement('div');
+2441 const optsWrap = document.createElement('div');
+2444 const b = document.createElement('button');
+2446 const span = document.createElement('span');
+2449 const icon = document.createElement('i');
+2457 const progWrap = document.createElement('div');
+2459 const progBg = document.createElement('div');
+2461 const progBar = document.createElement('div');
+2473 function checkAnswer(selected, correct, btn) {
+2475 const allBtns = btn.parentElement.querySelectorAll('button');
+2483 const word = practiceState.words[practiceState.idx];
+2497 const word = practiceState.words[practiceState.idx];
+2499 const learnedIdx = PROGRESS.learned.indexOf(word.id);
+2515 function createCelebrationParticle() {
+2516 const emojis = ['🎉', '✨', '🌟', '🏆', '👏', '🥳', '💯'];
+2517 const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+2518 const el = document.createElement('div');
+2522 const startX = Math.random() * 100;
+2527 const duration = 2 + Math.random() * 2;
+2528 const delay = Math.random() * 0.5;
+2529 const size = 20 + Math.random() * 25;
+2538 const endY = window.innerHeight + 100;
+2539 const endXMove = (Math.random() - 0.5) * 200;
+2549 function showResults() {
+2551 const modal = document.getElementById('practice-modal');
+2552 const content = document.getElementById('practice-content');
+2555 const total = practiceState.words.length;
+2556 const pct = Math.round((practiceState.score / total) * 100);
+2562 const resWrap = document.createElement('div');
+2566 const cupWrap = document.createElement('div');
+2570 const title = document.createElement('h2');
+2574 const sub = document.createElement('p');
+2584 const scoreCircle = document.createElement('div');
+2588 const title = document.createElement('h2');
+2592 const sub = document.createElement('p');
+2599 const info = document.createElement('div');
+2603 const actions = document.createElement('div');
+2605 const close = document.createElement('button');
+2609 const again = document.createElement('button');
+2618 function restartPractice() {
+2626 function endPractice() {
+2627 const modal = document.getElementById('practice-modal');
+2636 function startPairs() {
+2637 const pool = practiceCategory === 'all' ? WORDS : WORDS.filter(w => w.cat === practiceCategory);
+2639 const selectedWords = shuffle([...pool]).slice(0, 5);
+2653 function showPairsGame() {
+2654 const modal = document.getElementById('practice-modal');
+2655 const content = document.getElementById('practice-content');
+2658 const progress = Math.round((practiceState.matchedIds.length / practiceState.words.length) * 100);
+2660 const header = document.createElement('div');
+2662 const hTitle = document.createElement('div');
+2665 const close = document.createElement('button');
+2671 const body = document.createElement('div');
+2674 const grid = document.createElement('div');
+2677 const createCol = (items, side, selId) => {
+2678 const col = document.createElement('div');
+2681 const b = document.createElement('button');
+2701 const progWrap = document.createElement('div');
+2703 const progBg = document.createElement('div');
+2705 const progBar = document.createElement('div');
+2717 function selectPairItem(side, id) {
+2718 const leftTrigger = `pair-left-${id}`;
+2719 const rightTrigger = `pair-right-${id}`;
+2732 const leftBtn = document.getElementById('pair-left-' + practiceState.selectedLeft);
+2733 const rightBtn = document.getElementById('pair-right-' + practiceState.selectedRight);
+2734 const isMatch = practiceState.selectedLeft === practiceState.selectedRight;
+2743 const matchedId = practiceState.selectedLeft;
+2797 function startOddWord() {
+2798 const allCats = [...new Set(WORDS.map(w => w.cat))]; // Используем WORDS
+2808 let targetCat = practiceCategory === 'all' ? allCats[Math.floor(Math.random() * allCats.length)] : practiceCategory; // Используем state
+2809 let targetWords = WORDS.filter(w => w.cat === targetCat); // Используем WORDS
+2812 const validCats = allCats.filter(c => WORDS.filter(w => w.cat === c).length >= 3); // Используем WORDS
+2817 const correctWords = shuffle([...targetWords]).slice(0, 3);
+2818 const otherCats = allCats.filter(c => c !== targetCat);
+2819 const oddCat = otherCats[Math.floor(Math.random() * otherCats.length)];
+2820 const oddWord = shuffle(WORDS.filter(w => w.cat === oddCat))[0];
+2822 const options = shuffle([...correctWords, oddWord]);
+2833 function showOddWordQuestion() {
+2834 const modal = document.getElementById('practice-modal');
+2835 const content = document.getElementById('practice-content');
+2836 const q = practiceState.questions[practiceState.idx];
+2839 const progress = Math.round((practiceState.idx / practiceState.questions.length) * 100);
+2841 const header = document.createElement('div');
+2843 const hTitle = document.createElement('div');
+2846 const close = document.createElement('button');
+2852 const body = document.createElement('div');
+2854 const qWrap = document.createElement('div');
+2857 const b = document.createElement('button');
+2861 const textWrap = document.createElement('div');
+2862 const lzDiv = document.createElement('div');
+2865 const ruDiv = document.createElement('div');
+2871 const icon = document.createElement('i');
+2880 const progWrap = document.createElement('div');
+2882 const progBg = document.createElement('div');
+2884 const progBar = document.createElement('div');
+2896 function checkOddWord(selectedId, btn) {
+2898 const q = practiceState.questions[practiceState.idx];
+2899 const allBtns = btn.parentElement.querySelectorAll('button');
+2907 const word = WORDS.find(w => w.id === selectedId);
+2942 function addToPractice(wordId) {
+2943 const word = WORDS.find(w => w.id === wordId); // Используем WORDS
+2946 let unknown = WORDS.filter(w => w.id !== wordId && !PROGRESS.learned.includes(w.id)); // Используем WORDS, PROGRESS.learned
+2949 const learned = shuffle(WORDS.filter(w => w.id !== wordId && PROGRESS.learned.includes(w.id))); // Используем WORDS, PROGRESS.learned
+2953 const others = shuffle(unknown).slice(0, 9);
+2954 const initialWords = [word, ...others];
+2970 // =============== ТЁМНАЯ ТЕМА ===============
+2971 function applyTheme(theme) {
+2976 function initTheme() {
+2977 const saved = localStorage.getItem('lezgi_theme');
+2981 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+2992 function toggleTheme() {
+2993 const html = document.documentElement;
+2994 const isDark = html.getAttribute('data-theme') === 'dark';
+2995 const newTheme = isDark ? 'light' : 'dark';
+3001 function updateThemeUI() {
+3002 const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+3003 const icon = document.getElementById('theme-icon');
+3004 const label = document.getElementById('theme-label');
+3013 function hideLoader() {
+3014 const loader = document.getElementById('app-loader');
+3022 const loaderStatus = document.getElementById('loader-status');
+3023 const loaderProgress = document.getElementById('loader-progress-fill');
+3024 const loaderPercent = document.getElementById('loader-percent');
+3025 const loaderStep1 = document.getElementById('loader-step-words');
+3026 const loaderStep2 = document.getElementById('loader-step-grammar');
+3027 const loaderStep3 = document.getElementById('loader-step-audio');
+3028 const skipBtn = document.getElementById('loader-skip-btn');
+3030 const assets = [
+3037 const path = `audio/alphabet/${letter}.mp3`;
+3038 const url = getVersionedAudioUrl(path);
+3042 const total = assets.length;
+3043 let loadedCount = 0;
+3044 let preloadedFinished = false;
+3046 const updateProgress = () => {
+3049 const percentage = Math.round((loadedCount / total) * 100);
+3054 const loadAsset = async (asset) => {
+3059 const res = await fetch(asset.url);
+3063 const loadingEl = document.getElementById('words-loading');
+3067 const res = await fetch(asset.url);
+3072 const res = await fetch(asset.url);
+3074 const courseData = await res.json();
+3079 const res = await fetch(asset.url);
+3081 const blob = await res.blob();
+3082 const blobUrl = URL.createObjectURL(blob);
+3101 const queue = [...assets];
+3102 const activePromises = [];
+3103 const concurrency = 6;
+3105 const next = async () => {
+3107 const asset = queue.shift();
+3111 const audioLoaded = loadedCount - 2; // Subtract words and grammar
+3112 const audioTotal = ALPHABET_AUDIO_FILES.length;
+3120 const enterApp = () => {
+3146 const alphabetCountEl = document.getElementById('alphabet-count');
+3149 const practiceGrammarView = document.getElementById('practice-grammar-view');
+3182 function init() {
+3204 const sc = document.getElementById('search-clear');
+3206 const i = document.getElementById('search-input');
+3230 const trigger = e.target.closest('button, [role="button"], a, input, textarea, select');
+3236 const a = e.target.dataset.action;
+3256 const alphabetCountEl = document.getElementById('alphabet-count');
+3260 const hash = window.location.hash.replace('#', '');
+3267 const h = window.location.hash.replace('#', '');
+3273 function initKeyboard() {
+3276 const wordModal = document.getElementById('word-modal');
+3277 const practiceModal = document.getElementById('practice-modal');
+3299 // ==================== COURSE ENGINE ====================
+3301 function loadCourseProgress() {
+3303 const saved = localStorage.getItem('lezgi_course_progress');
+3305 const data = JSON.parse(saved);
+3315 function saveCourseProgress() {
+3319 function isUnitUnlocked(unitId) { return true;
+3322 const allUnits = [];
+3326 const idx = allUnits.indexOf(unitId);
+3331 function showCourseMainView() {
+3337 function renderCourseScreen() {
+3338 const grid = document.getElementById('course-modules-grid');
+3339 const statsEl = document.getElementById('course-stats');
+3348 let totalUnits = 0, completedUnits = 0;
+3357 const modWrap = document.createElement('div');
+3360 const modHeader = document.createElement('div');
+3362 const modBadge = document.createElement('span');
+3366 const modTitle = document.createElement('h2');
+3371 const modDesc = document.createElement('p');
+3376 const unitsGrid = document.createElement('div');
+3380 const unlocked = isUnitUnlocked(unit.id);
+3381 const completed = COURSE_PROGRESS.completedUnits.includes(unit.id);
+3382 const score = COURSE_PROGRESS.scores[unit.id];
+3384 const card = document.createElement('div');
+3387 const numCircle = document.createElement('div');
+3391 const info = document.createElement('div');
+3393 const title = document.createElement('div');
+3396 const sub = document.createElement('div');
+3402 const chevron = document.createElement('i');
+3420 function openCourseUnit(unit) {
+3424 const content = document.getElementById('course-unit-content');
+3428 const titleWrap = document.createElement('div');
+3430 const h = document.createElement('h1');
+3433 const sub = document.createElement('p');
+3439 const theoryWrap = document.createElement('div');
+3444 const startBtn = document.createElement('button');
+3449 const completed = COURSE_PROGRESS.completedUnits.includes(unit.id);
+3451 const againWrap = document.createElement('div');
+3453 const scoreInfo = document.createElement('div');
+3455 const sc = COURSE_PROGRESS.scores[unit.id];
+3465 function renderCourseTheoryMd(md) {
+3467 let html = md
+3479 const headers = header.split('|').map(h => h.trim()).filter(Boolean);
+3480 const rowLines = rows.trim().split('\n').filter(l => l.trim());
+3481 let table = '<div class="grammar-table-wrapper"><table class="grammar-table"><thead><tr>';
+3485 const cells = rl.split('|').map(c => c.trim()).filter(Boolean);
+3497 // ==================== COURSE EXERCISE ENGINE ====================
+3499 function startCourseExercises(unit) {
+3511 function showCourseExercise() {
+3517 const modal = document.getElementById('practice-modal');
+3518 const content = document.getElementById('practice-content');
+3521 const ex = courseExState.exercises[courseExState.idx];
+3522 const progress = Math.round((courseExState.idx / courseExState.total) * 100);
+3525 const header = document.createElement('div');
+3527 const hLeft = document.createElement('div');
+3529 const hTitle = document.createElement('div');
+3533 const close = document.createElement('button');
+3540 const progWrap = document.createElement('div');
+3542 const progBg = document.createElement('div');
+3544 const progBar = document.createElement('div');
+3553 const body = document.createElement('div');
+3575 function courseNextExercise(correct) {
+3587 function renderCourseFlashcard(body, ex) {
+3588 const card = document.createElement('div');
+3591 const label = document.createElement('div');
+3595 const word = document.createElement('div');
+3599 const trans = document.createElement('div');
+3606 const example = document.createElement('div');
+3612 const btn = document.createElement('button');
+3622 function renderCourseMinPairs(body, ex) {
+3623 const wrap = document.createElement('div');
+3626 const prompt = document.createElement('div');
+3630 const optionsWrap = document.createElement('div');
+3633 const words = [ex.word1, ex.word2];
+3634 let answered = false;
+3636 const btn = document.createElement('button');
+3642 const correct = i === ex.correctIdx;
+3645 const correctBtn = optionsWrap.children[ex.correctIdx];
+3649 const hint = document.createElement('div');
+3664 function renderCourseMatch(body, ex) {
+3665 const wrap = document.createElement('div');
+3667 const prompt = document.createElement('div');
+3671 const pairs = ex.pairs;
+3672 const leftItems = shuffle(pairs.map((p, i) => ({ text: p[0], idx: i })));
+3673 const rightItems = shuffle(pairs.map((p, i) => ({ text: p[1], idx: i })));
+3674 let selectedLeft = null;
+3675 let matchedCount = 0;
+3676 let errors = 0;
+3678 const grid = document.createElement('div');
+3681 const leftCol = document.createElement('div');
+3683 const rightCol = document.createElement('div');
+3686 function checkMatch(leftIdx, rightIdx) {
+3719 const btn = document.createElement('button');
+3739 const btn = document.createElement('button');
+3757 function renderCourseBuildSentence(body, ex) {
+3758 const wrap = document.createElement('div');
+3760 const prompt = document.createElement('div');
+3765 const trans = document.createElement('div');
+3771 const targetArea = document.createElement('div');
+3775 const wordsPool = document.createElement('div');
+3778 const shuffledWords = shuffle([...ex.words]);
+3779 const selected = [];
+3781 function updateTarget() {
+3788 const chip = document.createElement('button');
+3800 function renderPool() {
+3803 const usedCount = selected.filter(s => s === w).length;
+3804 const totalCount = shuffledWords.filter(s => s === w).length;
+3805 const available = usedCount < totalCount;
+3808 const btn = document.createElement('button');
+3822 const checkBtn = document.createElement('button');
+3826 const answer = selected.join(' ');
+3827 const correct = answer === ex.correct;
+3832 const correctAnswer = document.createElement('div');
+3850 function renderCourseFillGap(body, ex) {
+3851 const wrap = document.createElement('div');
+3853 const prompt = document.createElement('div');
+3857 const sentence = document.createElement('div');
+3862 const trans = document.createElement('div');
+3868 const optionsWrap = document.createElement('div');
+3870 let answered = false;
+3873 const btn = document.createElement('button');
+3879 const correct = i === ex.correct;
+3882 const correctBtn = optionsWrap.children[ex.correct];
+3895 const nodes = [...wrap.childNodes];
+3903 function renderCourseTranslate(body, ex) {
+3904 const wrap = document.createElement('div');
+3906 const prompt = document.createElement('div');
+3910 const textCard = document.createElement('div');
+3914 const input = document.createElement('input');
+3920 const checkBtn = document.createElement('button');
+3924 let answered = false;
+3925 const doCheck = () => {
+3928 const userAnswer = input.value.trim().toLowerCase().replace(/[.!?,;:]/g, '');
+3929 const acceptList = (ex.accept || [ex.answer]).map(a => a.toLowerCase().replace(/[.!?,;:]/g, ''));
+3930 const correct = acceptList.includes(userAnswer);
+3937 const correctAnswer = document.createElement('div');
+3955 function renderCourseDialog(body, ex) {
+3956 const wrap = document.createElement('div');
+3958 const prompt = document.createElement('div');
+3962 const chatWrap = document.createElement('div');
+3965 let lineIdx = 0;
+3966 let dialogErrors = 0;
+3968 function renderNextLine() {
+3974 const line = ex.lines[lineIdx];
+3978 const bubble = document.createElement('div');
+3980 const speakerTag = document.createElement('div');
+3984 const textEl = document.createElement('div');
+3992 const choiceWrap = document.createElement('div');
+3994 const choiceLabel = document.createElement('div');
+3999 let choiceAnswered = false;
+4001 const btn = document.createElement('button');
+4007 const correct = i === line.correct;
+4014 const bubble = document.createElement('div');
+4016 const speakerTag = document.createElement('div');
+4020 const textEl = document.createElement('div');
+4043 function renderCourseQuiz(body, ex) {
+4044 const wrap = document.createElement('div');
+4046 const prompt = document.createElement('div');
+4050 const optionsWrap = document.createElement('div');
+4052 let answered = false;
+4054 const options = Array.isArray(ex.options) ? ex.options : Object.values(ex.options);
+4055 const correctIdx = typeof ex.correct === 'number' ? ex.correct : options.indexOf(ex.options[ex.correct]);
+4058 const btn = document.createElement('button');
+4064 const correct = i === correctIdx;
+4070 const expl = document.createElement('div');
+4085 function renderCourseClassifying(body, ex) {
+4086 const wrap = document.createElement('div');
+4089 const topSection = document.createElement('div');
+4091 const prompt = document.createElement('div');
+4096 const shuffledItems = shuffle([...ex.items]);
+4097 let currentIndex = 0;
+4098 let madeMistake = false;
+4100 const itemContainer = document.createElement('div');
+4106 const buttonsContainer = document.createElement('div');
+4110 function renderCurrentItem() {
+4115 const doneMsg = document.createElement('div');
+4123 const item = shuffledItems[currentIndex];
+4125 const card = document.createElement('div');
+4131 const btn = document.createElement('button');
+4135 const allBtns = buttonsContainer.querySelectorAll('button');
+4161 const progressText = document.createElement('div');
+4171 // ==================== COURSE RESULTS ====================
+4173 function showCourseResults() {
+4175 const modal = document.getElementById('practice-modal');
+4176 const content = document.getElementById('practice-content');
+4179 const total = courseExState.total;
+4180 const score = courseExState.score;
+4181 const pct = Math.round((score / total) * 100);
+4182 const unitId = courseExState.unit.id;
+4191 const resWrap = document.createElement('div');
+4195 const cupWrap = document.createElement('div');
+4199 const title = document.createElement('h2');
+4203 const sub = document.createElement('p');
+4210 const scoreCircle = document.createElement('div');
+4214 const title = document.createElement('h2');
+4218 const sub = document.createElement('p');
+4224 const scoreCircle = document.createElement('div');
+4228 const title = document.createElement('h2');
+4232 const sub = document.createElement('p');
+4239 const info = document.createElement('div');
+4243 const actions = document.createElement('div');
+4246 const closeBtn = document.createElement('button');
+4254 const againBtn = document.createElement('button');
+4266 // ==================== END COURSE ENGINE ====================

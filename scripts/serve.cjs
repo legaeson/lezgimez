@@ -50,6 +50,31 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(filePath).pipe(res);
 });
 
-server.listen(port, () => {
-  console.log(`LezgiMez dev server: http://localhost:${port}`);
-});
+function startServer(initialPort) {
+  let currentPort = initialPort;
+  
+  const onListen = () => {
+    console.log(`LezgiMez dev server: http://localhost:${currentPort}`);
+    const { exec } = require('child_process');
+    const url = `http://localhost:${currentPort}`;
+    const cmd = process.platform === 'win32' 
+      ? `start chrome --app="${url}" --window-size="400,710" || start ${url}`
+      : (process.platform === 'darwin' ? `open ${url}` : `xdg-open ${url}`);
+    exec(cmd);
+  };
+
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.log(`Port ${currentPort} in use, trying ${currentPort + 1}...`);
+      currentPort++;
+      server.listen(currentPort, onListen);
+    } else {
+      console.error(e);
+      process.exit(1);
+    }
+  });
+
+  server.listen(currentPort, onListen);
+}
+
+startServer(port);

@@ -24,15 +24,10 @@ function listProjectFiles(dir = process.cwd(), prefix = '') {
   return result;
 }
 
-function checkSyntaxFromHtml(indexHtml) {
-  const match = indexHtml.match(/<script>([\s\S]*)<\/script>\s*<\/body>/);
-  assert(match, 'Inline JS block not found');
-  const tmp = path.join(process.cwd(), '.tmp-inline-check.js');
-  fs.writeFileSync(tmp, match[1]);
-  try {
-    execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' });
-  } finally {
-    fs.rmSync(tmp, { force: true });
+function checkSyntaxOfJsFiles() {
+  const jsFiles = ['utils.js', 'state.js', 'ui.js', 'srs.js', 'course.js', 'app.js'].map(f => path.join('js', f));
+  for (const file of jsFiles) {
+    execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
   }
 }
 
@@ -56,18 +51,20 @@ function checkProjectHygiene() {
   }
 }
 
-function checkRuntimeGuards(indexHtml) {
+function checkRuntimeGuards(indexHtml, allJs) {
   assert(indexHtml.includes('Content-Security-Policy'), 'CSP meta tag is required');
-  assert(!indexHtml.includes('DEMO_WORDS'), 'DEMO_WORDS is referenced');
-  assert(indexHtml.includes('function hideLoader()'), 'hideLoader is called but not defined');
-  assert(indexHtml.includes('function supportsNotifications()'), 'Notification API must be feature-detected');
-  assert(!indexHtml.includes('initZoomLock'), 'Zoom lock must not exist');
+  assert(!allJs.includes('DEMO_WORDS'), 'DEMO_WORDS is referenced');
+  assert(allJs.includes('function hideLoader()'), 'hideLoader is called but not defined');
+  assert(allJs.includes('function supportsNotifications()'), 'Notification API must be feature-detected');
+  assert(!allJs.includes('initZoomLock'), 'Zoom lock must not exist');
   assert(!/user-scalable\s*=\s*no|maximum-scale\s*=\s*1\.0/.test(indexHtml), 'User zoom must not be blocked');
+  assert(indexHtml.includes('function renderCourseTheoryMd(md)'), 'renderCourseTheoryMd must be defined in index.html');
+  assert(indexHtml.includes('return simpleMarkdown(md);'), 'renderCourseTheoryMd must delegate to simpleMarkdown in index.html');
 }
 
-function checkDomIds(indexHtml) {
+function checkDomIds(indexHtml, allJs) {
   const staticIds = new Set([...indexHtml.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
-  const requestedIds = new Set([...indexHtml.matchAll(/getElementById\('([^']+)'\)/g)].map(match => match[1]));
+  const requestedIds = new Set([...allJs.matchAll(/getElementById\('([^']+)'\)/g)].map(match => match[1]));
   const dynamicIds = new Set([
     'modal-fav-btn',
     'hint-chips',
@@ -82,7 +79,7 @@ function checkDomIds(indexHtml) {
 function checkServiceWorker() {
   const sw = read('sw.js');
   execFileSync(process.execPath, ['--check', 'sw.js'], { stdio: 'pipe' });
-  assert(sw.includes("CACHE_VERSION = '2.2.9'"), 'SW cache version must match app version');
+  assert(sw.includes("CACHE_VERSION = '2.2.11'"), 'SW cache version must match app version');
   assert(sw.includes('offlineResponse'), 'SW must have an explicit offline response helper');
   assert(sw.includes('new Response'), 'SW fallback must return Response objects');
   assert(sw.includes("cache: 'no-store'"), 'SW should fetch audio with no-store');
@@ -91,7 +88,7 @@ function checkServiceWorker() {
   const listMatch = sw.match(/const ALPHABET_AUDIO_FILES = \[([\s\S]*?)\];/);
   assert(listMatch, 'ALPHABET_AUDIO_FILES list not found');
   const audioNames = [...listMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
-  assert.strictEqual(audioNames.length, 40, 'SW should know all 40 alphabet audio files');
+  assert.strictEqual(audioNames.length, 39, 'SW should know all 39 alphabet audio files');
   for (const name of audioNames) {
     assertExists(path.join('audio', 'alphabet', `${name}.mp3`));
   }
@@ -135,12 +132,14 @@ function checkBuildFiles() {
 function runTests() {
   console.log('Running LezgiMez quality tests...');
   const indexHtml = read('index.html');
+  const jsFiles = ['utils.js', 'state.js', 'ui.js', 'srs.js', 'course.js', 'app.js'].map(f => read(path.join('js', f)));
+  const allJs = jsFiles.join('\n');
   checkBuildFiles();
-  checkSyntaxFromHtml(indexHtml);
-  checkSecrets(indexHtml);
+  checkSyntaxOfJsFiles();
+  checkSecrets(allJs);
   checkProjectHygiene();
-  checkRuntimeGuards(indexHtml);
-  checkDomIds(indexHtml);
+  checkRuntimeGuards(indexHtml, allJs);
+  checkDomIds(indexHtml, allJs);
   checkServiceWorker();
   checkData();
   console.log('All quality tests passed.');

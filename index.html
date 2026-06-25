@@ -964,7 +964,7 @@
     </style>
 </head>
 
-<body class="bg-slate-50 text-slate-800 md:overflow-y-auto md:h-auto loading">
+<body class="bg-slate-50 text-slate-800 h-[100dvh] overflow-hidden flex flex-col md:flex-row antialiased loading">
 
     <div id="app-loader" role="status" aria-live="polite" aria-label="Загрузка приложения LezgiMez">
         <div class="loader-logo">LezgiMez</div>
@@ -983,7 +983,7 @@
     </div>
 
     <!-- Desktop Sidebar -->
-    <aside class="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 bg-white border-r border-slate-100 z-[60]">
+    <aside class="hidden md:flex flex-col w-56 flex-shrink-0 relative bg-white border-r border-slate-100 z-[60]">
         <div class="h-14 flex items-center px-6 border-b border-slate-100 flex-shrink-0">
             <span class="font-bold text-2xl tracking-tighter">LezgiMez <span class="text-emerald-500">α</span></span>
         </div>
@@ -1023,7 +1023,7 @@
     </header>
 
     <!-- Main Content Area -->
-    <main class="mx-auto w-full max-w-3xl md:max-w-none md:mx-0 md:ml-56 md:w-[calc(100%-14rem)] md:overflow-y-visible">
+    <main class="flex-1 w-full overflow-y-auto overflow-x-hidden relative bg-transparent">
 
         <!-- Notification Permission Banner -->
         <div id="notif-banner"
@@ -1039,6 +1039,24 @@
                     <div id="notif-banner-actions" class="flex gap-3 mt-3">
                         <button data-action="enable" class="text-xs font-bold text-emerald-600 py-1">Включить</button>
                         <button data-action="dismiss" class="text-xs font-bold text-slate-400 py-1">Позже</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Available Banner -->
+        <div id="update-banner"
+            class="hidden mx-5 mt-4 bg-emerald-600 text-white rounded-3xl p-5 shadow-md relative overflow-hidden">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-emerald-500 rounded-2xl flex-shrink-0 flex items-center justify-center">
+                    <i class="fa-solid fa-cloud-arrow-down text-white text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-sm">Доступно обновление!</div>
+                    <p class="text-xs text-emerald-100 mt-1">Новая версия приложения загружена и готова к работе.</p>
+                    <div class="flex gap-3 mt-3">
+                        <button onclick="window.location.reload(true)" class="text-xs font-bold bg-white text-emerald-700 px-3 py-1.5 rounded-xl shadow-sm hover:bg-emerald-50 transition-colors">Обновить</button>
+                        <button onclick="document.getElementById('update-banner').classList.add('hidden')" class="text-xs font-bold text-emerald-100 px-2 py-1.5 hover:text-white transition-colors">Позже</button>
                     </div>
                 </div>
             </div>
@@ -1269,9 +1287,9 @@
 
         <!-- TAB 4: ЕЩЁ -->
         <div id="screen-more" class="app-screen px-5 pt-6 pb-20">
-            <div class="md:max-w-3xl md:mx-auto">
+            <div class="md:max-w-5xl md:mx-auto">
                 <div class="mb-8">
-                    <h1 class="text-4xl font-bold tracking-tighter text-emerald-900">Ещё</h1>
+                    <h1 class="text-5xl font-bold tracking-tighter text-emerald-900">Ещё</h1>
                 </div>
 
                 <div class="space-y-3">
@@ -1375,7 +1393,7 @@
                                 <i class="fa-solid fa-globe w-5 text-emerald-600"></i>
                                 <span>Версия приложения</span>
                             </div>
-                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.2.7</span>
+                            <span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">2.2.11</span>
                         </div>
                         <div class="flex justify-between items-center py-1 border-t mt-3 pt-3 border-slate-100">
                             <div class="flex items-center gap-x-3">
@@ -1492,7 +1510,7 @@
         </div>
 
         <!-- TAB 5: КУРС -->
-        <div id="screen-course" class="app-screen px-5 pt-6 pb-20 md:max-w-4xl md:mx-auto">
+        <div id="screen-course" class="app-screen px-5 pt-6 pb-20">
             <!-- Course Main View: modules & units tree -->
             <div id="course-main-view">
                 <div class="mb-6">
@@ -1504,13 +1522,13 @@
                 </div>
             </div>
             <!-- Course Unit View: theory + start exercises -->
-            <div id="course-unit-view" class="hidden">
+            <div id="course-unit-view" class="hidden md:max-w-5xl md:mx-auto">
                 <button id="course-unit-back-btn"
                     class="flex items-center gap-2 text-emerald-600 font-bold mb-6 active:scale-95 transition-transform">
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>К модулям</span>
                 </button>
-                <div id="course-unit-content"></div>
+                <div id="course-unit-content" class="max-w-none"></div>
             </div>
         </div>
 
@@ -1639,7 +1657,7 @@
         let COURSE = [];
         let COURSE_PROGRESS = { completedUnits: [], scores: {}, currentUnit: null };
         let courseExState = null; // state for course exercise session
-        const APP_VERSION = '2.2.9';
+        const APP_VERSION = '2.2.11';
         const DEBUG = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('debug=1');
         const log = (...args) => { if (DEBUG) console.log(...args); };
         const warn = (...args) => { if (DEBUG) console.warn(...args); };
@@ -1647,11 +1665,10 @@
             'а', 'б', 'в', 'г', 'гъ', 'гь', 'д', 'е', 'ж', 'з', 'и', 'й',
             'к', 'к1', 'къ', 'кь', 'л', 'м', 'н', 'п', 'п1', 'р', 'с', 'т',
             'т1', 'у', 'уь', 'ф', 'х', 'хъ', 'хь', 'ц', 'ц1', 'ч', 'ч1',
-            'ш', 'ы', 'э', 'ю', 'я'
+            'ш', 'э', 'ю', 'я'
         ];
-        let SEARCH_INDEX = [];
         let currentTab = 'alphabet';
-        const PAGE_SIZE = 20;
+        const PAGE_SIZE = window.innerWidth >= 768 ? 50 : 20;
         let loadedCount = 0;
         let currentFilter = { search: '', category: 'all' };
         let practiceCategory = 'all';
@@ -1679,7 +1696,9 @@
                 request.onsuccess = () => {
                     const db = request.result;
                     const tx = db.transaction('config', 'readwrite');
-                    tx.objectStore('config').put(enabled, 'notif_enabled');
+                    const store = tx.objectStore('config');
+                    store.put(enabled, 'notif_enabled');
+                    store.put('3', 'notif_interval');
                     tx.oncomplete = () => resolve();
                 };
             });
@@ -1697,7 +1716,7 @@
                 if (!('permissions' in navigator) || !navigator.permissions.query) return false;
                 const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
                 if (status.state !== 'granted') return false;
-                await registration.periodicSync.register('daily-reminder', { minInterval: 12 * 60 * 60 * 1000 });
+                await registration.periodicSync.register('daily-reminder', { minInterval: 3 * 60 * 60 * 1000 });
                 return true;
             } catch (e) {
                 warn('[PWA] Periodic sync unavailable', e);
@@ -1726,7 +1745,7 @@
 
             if (isEnabled && Notification.permission === 'granted') {
                 bell.className = 'fa-solid fa-bell w-5 text-center text-emerald-600 transition-colors duration-200';
-                statusText.textContent = 'Включены (18:00 - 21:00)';
+                statusText.textContent = 'Включены';
             } else {
                 bell.className = 'fa-regular fa-bell w-5 text-center text-slate-400 transition-colors duration-200';
                 statusText.textContent = 'Выключены';
@@ -2172,6 +2191,8 @@
         function showUpdateReady() {
             const status = document.getElementById('update-status');
             if (status) status.textContent = 'Готово';
+            const banner = document.getElementById('update-banner');
+            if (banner) banner.classList.remove('hidden');
         }
 
         function registerSW() {
@@ -2208,51 +2229,189 @@
         }
 
         function normalizeLezgiSearch(value) {
-            return String(value || '')
+            if (!value) return '';
+            return String(value)
                 .toLowerCase()
                 .normalize('NFC')
                 .replace(/ё/g, 'е')
-                .replace(/[ӏӀI!ʼ’'`|]/g, '1')
+                .replace(/[ӏӀIi!ʼ’'`|]/g, '1')
                 .replace(/\s+/g, ' ')
                 .trim();
         }
 
         function rebuildSearchIndex() {
-            SEARCH_INDEX = (WORDS || []).map(word => ({
-                id: word.id,
-                text: normalizeLezgiSearch([word.lz, word.ru, word.cat, word.ex, ...(word.tags || [])].join(' '))
-            }));
+            if (WORDS && WORDS.length > 0 && WORDS[0]._search) return; // already indexed
+            const cleanString = (str) => str.replace(/1/g, '');
+            const splitParts = (str) => str.split(/[\s/,;|\(\)\-\[\]\.\?\!\:\"]+/).filter(Boolean);
+
+            (WORDS || []).forEach(word => {
+                const lz = normalizeLezgiSearch(word.lz);
+                const ru = normalizeLezgiSearch(word.ru);
+                const ex = normalizeLezgiSearch(word.ex);
+                const tags = (word.tags || []).map(t => normalizeLezgiSearch(t));
+
+                word._search = {
+                    lz, ru, ex, tags,
+                    lzParts: splitParts(lz),
+                    ruParts: splitParts(ru),
+                    lzClean: cleanString(lz),
+                    lzPartsClean: splitParts(lz).map(cleanString),
+                    exClean: cleanString(ex),
+                    tagsClean: tags.map(cleanString)
+                };
+            });
         }
 
         function getSearchResults(words, query) {
-            const normalized = normalizeLezgiSearch(query);
-            if (!normalized) return { results: words, hint: '' };
+            const q = normalizeLezgiSearch(query);
+            if (!q) return { results: words, hint: '' };
 
-            if (!SEARCH_INDEX.length || SEARCH_INDEX.length !== WORDS.length) rebuildSearchIndex();
-            const allowed = new Set(words.map(w => w.id));
-            const matchedIds = new Set(SEARCH_INDEX
-                .filter(item => allowed.has(item.id) && item.text.includes(normalized))
-                .map(item => item.id));
-            const primaryResults = words.filter(w => matchedIds.has(w.id));
-            if (primaryResults.length > 0) return { results: primaryResults, hint: '' };
+            if (WORDS && WORDS.length > 0 && !WORDS[0]._search) rebuildSearchIndex();
 
-            const fallbackQuery = normalized
-                .replace(/к[Ӏӏ1]/g, 'к1')
-                .replace(/п[Ӏӏ1]/g, 'п1')
-                .replace(/т[Ӏӏ1]/g, 'т1')
-                .replace(/ц[Ӏӏ1]/g, 'ц1')
-                .replace(/ч[Ӏӏ1]/g, 'ч1');
-            if (fallbackQuery !== normalized) {
-                const fallbackIds = new Set(SEARCH_INDEX
-                    .filter(item => allowed.has(item.id) && item.text.includes(fallbackQuery))
-                    .map(item => item.id));
-                const fallbackResults = words.filter(w => fallbackIds.has(w.id));
-                if (fallbackResults.length > 0) {
-                    return { results: fallbackResults, hint: 'Показаны результаты с нормализацией кӀ/к1/кI и похожих символов' };
+            const cleanString = (str) => str.replace(/1/g, '');
+            const qClean = cleanString(q);
+
+            const scoredItems = [];
+            let matchedWithoutPalochka = false;
+            let matchedWithPalochka = false;
+
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                const item = word._search;
+                if (!item) continue;
+
+                // Быстрый фильтр: если запрос никак не пересекается с записью, пропускаем
+                const hasLzMatch = item.lzClean.includes(qClean);
+                const hasRuMatch = item.ru.includes(q);
+                const hasTagsMatch = item.tags.some((tag, idx) => tag.includes(q) || item.tagsClean[idx].includes(qClean));
+                const hasExMatch = item.exClean.includes(qClean);
+
+                if (!hasLzMatch && !hasRuMatch && !hasTagsMatch && !hasExMatch) continue;
+
+                let score = 0;
+                let usedPalochkaFallback = false;
+
+                // 1. Lezgi whole-field match
+                if (hasLzMatch) {
+                    if (item.lz === q) {
+                        score += 10000;
+                    } else if (item.lzClean === qClean) {
+                        score += 8000;
+                        usedPalochkaFallback = true;
+                    } else if (item.lz.startsWith(q)) {
+                        score += 3500;
+                    } else if (item.lzClean.startsWith(qClean)) {
+                        score += 2500;
+                        usedPalochkaFallback = true;
+                    } else if (item.lz.includes(q)) {
+                        score += 1200;
+                    } else if (item.lzClean.includes(qClean)) {
+                        score += 900;
+                        usedPalochkaFallback = true;
+                    }
+
+                    // 2. Lezgi parts match
+                    for (let j = 0; j < item.lzParts.length; j++) {
+                        const part = item.lzParts[j];
+                        const cleanPart = item.lzPartsClean[j];
+
+                        if (part === q) {
+                            score += 5000;
+                        } else if (cleanPart === qClean) {
+                            score += 4000;
+                            usedPalochkaFallback = true;
+                        } else if (part.startsWith(q)) {
+                            score += 3000 + (q.length / part.length * 500);
+                        } else if (cleanPart.startsWith(qClean)) {
+                            score += 2000 + (qClean.length / cleanPart.length * 400);
+                            usedPalochkaFallback = true;
+                        } else if (part.includes(q)) {
+                            score += 1000 + (q.length / part.length * 100);
+                        } else if (cleanPart.includes(qClean)) {
+                            score += 800 + (qClean.length / cleanPart.length * 80);
+                            usedPalochkaFallback = true;
+                        }
+                    }
+                }
+
+                // 3. Russian whole-field match
+                if (hasRuMatch) {
+                    if (item.ru === q) {
+                        score += 7000;
+                    } else if (item.ru.startsWith(q)) {
+                        score += 3000;
+                    } else if (item.ru.includes(q)) {
+                        score += 1000;
+                    }
+
+                    // 4. Russian parts match
+                    for (let j = 0; j < item.ruParts.length; j++) {
+                        const part = item.ruParts[j];
+                        if (part === q) {
+                            score += 4500;
+                        } else if (part.startsWith(q)) {
+                            score += 2500 + (q.length / part.length * 400);
+                        } else if (part.includes(q)) {
+                            score += 900 + (q.length / part.length * 80);
+                        }
+                    }
+                }
+
+                // 5. Tags match
+                if (hasTagsMatch) {
+                    for (let j = 0; j < item.tags.length; j++) {
+                        const tag = item.tags[j];
+                        const cleanTag = item.tagsClean[j];
+
+                        if (tag === q) {
+                            score += 1500;
+                        } else if (cleanTag === qClean) {
+                            score += 1200;
+                            usedPalochkaFallback = true;
+                        } else if (tag.startsWith(q)) {
+                            score += 1000;
+                        } else if (tag.includes(q)) {
+                            score += 500;
+                        }
+                    }
+                }
+
+                // 6. Example match
+                if (hasExMatch) {
+                    if (item.ex.includes(q)) {
+                        score += 300;
+                    } else if (item.exClean.includes(qClean)) {
+                        score += 150;
+                        usedPalochkaFallback = true;
+                    }
+                }
+
+                if (score > 0) {
+                    scoredItems.push({ word, score, index: i });
+                    if (usedPalochkaFallback) {
+                        matchedWithoutPalochka = true;
+                    } else {
+                        matchedWithPalochka = true;
+                    }
                 }
             }
 
-            return { results: [], hint: '' };
+            // Sort by score desc, then by original index to keep stable sort
+            scoredItems.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return a.index - b.index;
+            });
+
+            // Map back to word objects
+            const results = scoredItems.map(item => item.word);
+
+            // Generate search hints
+            let hint = '';
+            if (qClean === q && matchedWithoutPalochka) {
+                hint = 'Показаны результаты с нормализацией кӀ/к1/кI и похожих символов';
+            }
+
+            return { results, hint };
         }
 
         function initSearchBehavior() {
@@ -2543,7 +2702,7 @@
             { "letter": "Хъ хъ", "ipa": "/qʰ/" }, { "letter": "Хь хь", "ipa": "/x/" },
             { "letter": "Ц ц", "ipa": "/tsʰ/ ~ /ts/" }, { "letter": "ЦI цI", "ipa": "/ts'/" },
             { "letter": "Ч ч", "ipa": "/tʃʰ/ ~ /tʃ/" }, { "letter": "ЧI чI", "ipa": "/tʃ'/" },
-            { "letter": "Ш ш", "ipa": "/ʃ/" }, { "letter": "Ъ ъ", "ipa": "/ʔ/" }, { "letter": "Ы ы", "ipa": "/ə/" },
+            { "letter": "Ш ш", "ipa": "/ʃ/" }, { "letter": "Ъ ъ", "ipa": "/ʔ/" },
             { "letter": "Э э", "ipa": "/e/" }, { "letter": "Ю ю", "ipa": "/ju/ ~ /y/" }, { "letter": "Я я", "ipa": "/ja/ ~ /æ/" }
         ];
 
@@ -2780,12 +2939,13 @@
                 const b = document.createElement('strong');
                 b.textContent = 'Ваш личный список.';
                 contextBanner.append(b, ' Повторяйте эти слова регулярно. Прогресс сохраняется на устройстве.');
-                contextBanner.style.display = 'block';
+                contextBanner.style.display = '';
             } else if (currentFilter.category === 'all' && !hasSearch) {
                 const b = document.createElement('strong');
                 b.textContent = 'Весь словарь.';
                 contextBanner.append(b, ' Листайте список, используйте поиск или фильтр по темам.');
-                contextBanner.style.display = 'block';
+                contextBanner.className += ' md:hidden';
+                contextBanner.style.display = '';
             } else if (currentFilter.category !== 'all' && !hasSearch) {
                 const wrapper = document.getElementById('category-filter-wrapper');
                 const catName = wrapper.querySelector('.dropdown-value').textContent;
@@ -2793,7 +2953,7 @@
                 const b = document.createElement('strong');
                 b.textContent = `«${catName}»`;
                 contextBanner.append(b, '. Учите слова в контексте одной темы для лучшего запоминания.');
-                contextBanner.style.display = 'block';
+                contextBanner.style.display = '';
             } else {
                 contextBanner.style.display = 'none';
             }
@@ -3499,8 +3659,8 @@
         }
 
         function renderMarkdownBlock(block) {
-            if (/^###\s+/.test(block)) {
-                return `<h3 class="grammar-h3">${formatInlineMarkdown(block.replace(/^###\s+/, '').trim())}</h3>`;
+            if (/^#{1,3}\s+/.test(block)) {
+                return `<h3 class="grammar-h3">${formatInlineMarkdown(block.replace(/^#{1,3}\s+/, '').trim())}</h3>`;
             }
 
             if (/^\*\*Для чего этот урок:\*\*/i.test(block) || /^\*\*Зачем этот юнит:\*\*/i.test(block)) {
@@ -3518,13 +3678,21 @@
             if (/^\*См\. также:/i.test(block)) {
                 return `<div class="grammar-see">${formatInlineMarkdown(block)}</div>`;
             }
-
             if (/^\d+\.\s+/.test(block)) {
                 return renderListBlock(block, true);
             }
 
             if (/^[-*]\s+/.test(block)) {
                 return renderListBlock(block, false);
+            }
+
+            if (/^>\s*/.test(block)) {
+                const cleaned = block.split('\n').map(l => l.replace(/^>\s*/, '')).join('\n');
+                let html = formatInlineMarkdown(cleaned).replace(/\n/g, '<br>');
+                if (html.startsWith('💡 Совет')) {
+                    html = html.replace(/^💡 Совет(?:Заметь\s*|:\s*|\s+)?/, '<strong class="grammar-strong">💡 Совет:</strong> ');
+                }
+                return `<div class="grammar-note">${html}</div>`;
             }
 
             return `<p class="grammar-p">${formatInlineMarkdown(block).replace(/\n/g, '<br>')}</p>`;
@@ -3555,7 +3723,7 @@
                     continue;
                 }
 
-                if (/^###\s+/.test(line)) {
+                if (/^#{1,3}\s+/.test(line)) {
                     flushParagraph();
                     rendered.push(renderMarkdownBlock(line));
                     i++;
@@ -4604,12 +4772,6 @@
                 { type: 'json', key: 'course', url: 'course.json', label: 'Курс' }
             ];
 
-            ALPHABET_AUDIO_FILES.forEach(letter => {
-                const path = `audio/alphabet/${letter}.mp3`;
-                const url = getVersionedAudioUrl(path);
-                assets.push({ type: 'audio', key: `audio-${letter}`, url: url, label: `Звук "${letter.toUpperCase()}"` });
-            });
-
             const total = assets.length;
             let loadedCount = 0;
             let preloadedFinished = false;
@@ -4645,13 +4807,6 @@
                         const courseData = await res.json();
                         COURSE = courseData.modules || [];
                         log(`[LezgiMez] Loaded ${COURSE.length} course modules`);
-                    } else if (asset.type === 'audio') {
-                        if (loaderStatus) loaderStatus.textContent = `Загрузка: ${asset.label}...`;
-                        const res = await fetch(asset.url);
-                        if (!res.ok) throw new Error('HTTP ' + res.status);
-                        const blob = await res.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        PRELOADED_AUDIO[asset.url] = blobUrl;
                     }
                 } catch (e) {
                     warn(`[Preloader] Failed to load asset: ${asset.url}`, e);
@@ -4666,24 +4821,16 @@
             };
 
             // Set up UI indicators at startup
-            if (loaderStep3) loaderStep3.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-500 mr-3 text-base"></i>Подготовка озвучки...';
+            if (loaderStep3) loaderStep3.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 mr-3 text-base"></i>Озвучка готова к работе';
 
-            // Execution queue with concurrency 6
+            // Execution queue
             const queue = [...assets];
             const activePromises = [];
-            const concurrency = 6;
+            const concurrency = 3;
 
             const next = async () => {
                 if (queue.length === 0 || preloadedFinished) return;
                 const asset = queue.shift();
-
-                // Show a clean audio progress check halfway
-                if (asset.type === 'audio' && loaderStep3) {
-                    const audioLoaded = loadedCount - 2; // Subtract words and grammar
-                    const audioTotal = ALPHABET_AUDIO_FILES.length;
-                    loaderStep3.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-emerald-500 mr-3 text-base"></i>Озвучка букв: ${Math.max(0, audioLoaded)}/${audioTotal}`;
-                }
-
                 await loadAsset(asset);
                 return next();
             };
@@ -5034,35 +5181,10 @@
         }
 
         function renderCourseTheoryMd(md) {
-            // Simple markdown-to-HTML for theory blocks
-            let html = md
-                .replace(/^### (.+)$/gm, '<h3 class="grammar-h3">$1</h3>')
-                .replace(/^## (.+)$/gm, '<h3 class="grammar-h3">$1</h3>')
-                .replace(/^# (.+)$/gm, '<h3 class="grammar-h3">$1</h3>')
-                .replace(/\*\*(.+?)\*\*/g, '<strong class="grammar-strong">$1</strong>')
-                .replace(/> 💡 (.+)/g, '<div class="grammar-note"><strong class="grammar-strong">💡 Совет</strong> $1</div>')
-                .replace(/> (.+)/g, '<div class="grammar-note">$1</div>')
-                .replace(/\n\n/g, '</p><p class="grammar-p">')
-                .replace(/\n/g, '<br>');
-
-            // Table support
-            html = html.replace(/\|(.+)\|\n?\|[-| :]+\|\n?((?:\|.+\|\n?)+)/g, (match, header, rows) => {
-                const headers = header.split('|').map(h => h.trim()).filter(Boolean);
-                const rowLines = rows.trim().split('\n').filter(l => l.trim());
-                let table = '<div class="grammar-table-wrapper"><table class="grammar-table"><thead><tr>';
-                headers.forEach(h => { table += `<th>${h}</th>`; });
-                table += '</tr></thead><tbody>';
-                rowLines.forEach(rl => {
-                    const cells = rl.split('|').map(c => c.trim()).filter(Boolean);
-                    table += '<tr>';
-                    cells.forEach(c => { table += `<td>${c}</td>`; });
-                    table += '</tr>';
-                });
-                table += '</tbody></table></div>';
-                return table;
-            });
-
-            return `<p class="grammar-p">${html}</p>`;
+            if (typeof simpleMarkdown === 'function') {
+                return simpleMarkdown(md);
+            }
+            return `<p class="grammar-p">${md}</p>`;
         }
 
         // ==================== COURSE EXERCISE ENGINE ====================

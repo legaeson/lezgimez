@@ -1,11 +1,11 @@
-const CACHE_VERSION = '2.2.9';
+const CACHE_VERSION = '2.2.11';
 const CACHE_NAME = `lezgimez-pwa-v${CACHE_VERSION}`;
 
 const ALPHABET_AUDIO_FILES = [
   'а', 'б', 'в', 'г', 'гъ', 'гь', 'д', 'е', 'ж', 'з', 'и', 'й',
   'к', 'к1', 'къ', 'кь', 'л', 'м', 'н', 'п', 'п1', 'р', 'с', 'т',
   'т1', 'у', 'уь', 'ф', 'х', 'хъ', 'хь', 'ц', 'ц1', 'ч', 'ч1',
-  'ш', 'ы', 'э', 'ю', 'я'
+  'ш', 'э', 'ю', 'я'
 ];
 
 const CRITICAL_ASSETS = [
@@ -15,6 +15,7 @@ const CRITICAL_ASSETS = [
   './output.css',
   './words.json',
   './grammar.json',
+  './notifications.json',
   './robots.txt',
   './sitemap.xml',
   './favicon.ico'
@@ -113,13 +114,32 @@ async function checkAndNotify() {
   const enabled = await getConfig('notif_enabled');
   if (enabled !== '1') return;
 
-  const now = new Date();
-  const hour = now.getHours();
-  const today = now.toISOString().split('T')[0];
-  const lastDate = await getConfig('last_notif_date');
+  const now = Date.now();
+  const lastTime = await getConfig('last_notif_time') || 0;
+  const intervalMs = 3 * 60 * 60 * 1000; // hardcoded to 3 hours
 
-  if (hour >= 18 && hour <= 21 && lastDate !== today) {
-    const body = REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)];
+  if (now - lastTime >= intervalMs) {
+    let body = 'Пора повторить слова! Лезгинский язык ждёт вас.';
+    try {
+      const cachedResponse = await caches.match('./notifications.json');
+      if (cachedResponse) {
+        const messages = await cachedResponse.json();
+        if (Array.isArray(messages) && messages.length > 0) {
+          body = messages[Math.floor(Math.random() * messages.length)];
+        }
+      } else {
+        const response = await fetch('./notifications.json');
+        const messages = await response.json();
+        if (Array.isArray(messages) && messages.length > 0) {
+          body = messages[Math.floor(Math.random() * messages.length)];
+        }
+      }
+    } catch (e) {
+      if (Array.isArray(REMINDER_MESSAGES) && REMINDER_MESSAGES.length > 0) {
+        body = REMINDER_MESSAGES[Math.floor(Math.random() * REMINDER_MESSAGES.length)];
+      }
+    }
+
     await self.registration.showNotification('LezgiMez', {
       body,
       icon: './icons/icon.svg',
@@ -127,7 +147,7 @@ async function checkAndNotify() {
       tag: 'daily-reminder',
       data: { url: './index.html#vocabulary' }
     });
-    await setConfig('last_notif_date', today);
+    await setConfig('last_notif_time', now);
   }
 }
 
@@ -212,21 +232,21 @@ self.addEventListener('fetch', (event) => {
   // Never cache serverless/report endpoints. Let the network/backend handle them.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.netlify/functions/')) return;
 
-  if (url.pathname.endsWith('.mp3')) {
+  if (
+    url.pathname.endsWith('.mp3') ||
+    url.pathname.endsWith('/words.json') ||
+    url.pathname.endsWith('/grammar.json') ||
+    url.pathname.endsWith('/notifications.json')
+  ) {
     event.respondWith(cacheFirst(request));
     return;
   }
 
   if (
     request.mode === 'navigate' ||
-    url.pathname.endsWith('/index.html') ||
-    url.pathname.endsWith('/words.json') ||
-    url.pathname.endsWith('/grammar.json')
+    url.pathname.endsWith('/index.html')
   ) {
-    const fallback = url.pathname.endsWith('/words.json') ? './words.json'
-      : url.pathname.endsWith('/grammar.json') ? './grammar.json'
-        : './index.html';
-    event.respondWith(networkFirst(request, fallback));
+    event.respondWith(networkFirst(request, './index.html'));
     return;
   }
 

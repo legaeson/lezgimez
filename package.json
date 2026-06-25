@@ -1,6 +1,6 @@
 {
   "name": "lezgimez",
-  "version": "2.2.9",
+  "version": "2.2.11",
   "description": "Lezgian language learning PWA with dictionary, grammar, SRS and offline support",
   "main": "sw.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "tailwindcss -i input.css -o output.css --watch",
     "serve": "node scripts/serve.cjs",
     "validate": "node scripts/validate-words.cjs",
-    "test": "node test.cjs && npm run validate",
+    "test": "node scripts/sync-js.cjs && node test.cjs && npm run validate",
     "quality": "npm test && npm run build",
     "export": "node scripts/export.cjs"
   },
