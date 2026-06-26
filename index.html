@@ -3381,6 +3381,22 @@
         let lastDialogTrigger = null;
 
         function switchTab(tab) {
+            const hn = window.location.hostname;
+            const isLocal = hn === 'localhost' || 
+                            hn === '127.0.0.1' || 
+                            hn === '0.0.0.0' || 
+                            hn.endsWith('.local') || 
+                            hn.startsWith('192.168.') || 
+                            hn.startsWith('10.') || 
+                            /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hn) || 
+                            window.location.protocol === 'file:';
+            if (tab === 'course' && !isLocal) {
+                showComingSoonModal();
+                if (!currentTab) {
+                    switchTab('alphabet');
+                }
+                return;
+            }
             if (!tab || !VALID_TABS.includes(tab)) return;
             if (currentTab === tab) {
                 document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
