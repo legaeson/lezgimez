@@ -3334,12 +3334,60 @@
             }
         }
 
+        function showComingSoonModal() {
+            const modal = document.getElementById('word-modal');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = '';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'px-6 py-10 text-center flex flex-col items-center justify-center relative overflow-hidden';
+
+            const glow = document.createElement('div');
+            glow.className = 'absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none';
+            const glow2 = document.createElement('div');
+            glow2.className = 'absolute -bottom-24 -right-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none';
+            wrap.append(glow, glow2);
+
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'w-20 h-20 bg-gradient-to-tr from-emerald-50 to-teal-50 border border-emerald-100 rounded-3xl flex items-center justify-center mb-6 shadow-sm relative animate-pulse';
+            iconWrap.innerHTML = '<i class="fa-solid fa-compass-drafting text-emerald-600 text-3xl"></i>';
+            wrap.appendChild(iconWrap);
+
+            const h3 = document.createElement('h3');
+            h3.className = 'font-extrabold text-2xl mb-3 text-slate-800 tracking-tight';
+            h3.textContent = 'Раздел в разработке';
+            wrap.appendChild(h3);
+
+            const p = document.createElement('p');
+            p.className = 'text-sm text-slate-500 max-w-md mb-8 leading-relaxed';
+            p.textContent = 'Интерактивный курс лезгинского языка с упражнениями и озвучкой скоро будет доступен! Мы усердно работаем над созданием качественных и увлекательных уроков.';
+            wrap.appendChild(p);
+
+            const okBtn = document.createElement('button');
+            okBtn.className = 'w-full py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold rounded-2xl text-base transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2';
+            okBtn.innerHTML = 'Понятно';
+            okBtn.addEventListener('click', closeModal);
+            wrap.appendChild(okBtn);
+
+            content.appendChild(wrap);
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
         // Tab switching
         const VALID_TABS = ['alphabet', 'vocabulary', 'course', 'practice', 'more'];
         const SEEN_SCREENS = new Set(); // чтобы анимация входа была только один раз
         let lastDialogTrigger = null;
 
         function switchTab(tab) {
+            if (tab === 'course') {
+                showComingSoonModal();
+                if (!currentTab) {
+                    switchTab('alphabet');
+                }
+                return;
+            }
             if (!tab || !VALID_TABS.includes(tab)) return;
             if (currentTab === tab) {
                 document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
