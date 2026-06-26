@@ -1127,13 +1127,6 @@
         let lastDialogTrigger = null;
 
         function switchTab(tab) {
-            if (tab === 'course') {
-                showComingSoonModal();
-                if (!currentTab) {
-                    switchTab('alphabet');
-                }
-                return;
-            }
             if (!tab || !VALID_TABS.includes(tab)) return;
             if (currentTab === tab) {
                 document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
