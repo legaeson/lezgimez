@@ -1105,9 +1105,17 @@
             wrap.appendChild(h3);
 
             const p = document.createElement('p');
-            p.className = 'text-sm text-slate-500 max-w-md mb-8 leading-relaxed';
+            p.className = 'text-sm text-slate-500 max-w-md mb-5 leading-relaxed';
             p.textContent = 'Интерактивный курс лезгинского языка с упражнениями и озвучкой скоро будет доступен! Мы усердно работаем над созданием качественных и увлекательных уроков.';
             wrap.appendChild(p);
+
+            const tgLink = document.createElement('a');
+            tgLink.href = 'https://t.me/lezgimez';
+            tgLink.target = '_blank';
+            tgLink.rel = 'noopener noreferrer';
+            tgLink.className = 'text-sm font-medium text-emerald-600 hover:text-emerald-700 mb-8 inline-flex items-center gap-2';
+            tgLink.innerHTML = '<i class="fa-brands fa-telegram text-lg"></i>Следить за обновлениями в Telegram';
+            wrap.appendChild(tgLink);
 
             const okBtn = document.createElement('button');
             okBtn.className = 'w-full py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold rounded-2xl text-base transition-all shadow-md shadow-emerald-100 flex items-center justify-center gap-2';
