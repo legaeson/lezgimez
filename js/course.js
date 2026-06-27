@@ -194,6 +194,7 @@
             const modal = document.getElementById('practice-modal');
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
+            content.classList.add('flex', 'flex-col');
 
             const ex = courseExState.exercises[courseExState.idx];
             const progress = Math.round((courseExState.idx / courseExState.total) * 100);
@@ -207,6 +208,7 @@
             hTitle.className = 'font-bold text-slate-800';
             hTitle.textContent = `${courseExState.idx + 1} / ${courseExState.total}`;
             hLeft.append(hTitle);
+
             const close = document.createElement('button');
             close.className = 'w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-500 rounded-full transition-all';
             close.innerHTML = '<i class="fa-solid fa-times"></i>';
@@ -245,6 +247,169 @@
             }
 
             content.appendChild(body);
+
+            // Report button at the bottom
+            const footer = document.createElement('div');
+            footer.className = 'pb-10 pt-4 flex justify-center mt-auto w-full';
+
+            const reportBtn = document.createElement('button');
+            reportBtn.className = 'py-3.5 px-5 bg-rose-50 active:bg-rose-100 text-rose-600 font-bold rounded-3xl flex items-center justify-center gap-x-2 text-sm border border-rose-100/50 transition-colors shadow-sm';
+            reportBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Сообщить об ошибке';
+            reportBtn.title = 'Сообщить об ошибке в задании';
+            reportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showCourseReportForm(courseExState.unit, ex);
+            });
+            footer.appendChild(reportBtn);
+
+            content.appendChild(footer);
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function showCourseReportForm(unit, ex) {
+            const modal = document.getElementById('word-modal');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = '';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'px-6 pt-6 pb-6 text-center flex-1 flex flex-col min-h-0';
+
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'mx-auto w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mb-4 flex-shrink-0';
+            iconWrap.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-emerald-600 text-2xl"></i>';
+
+            const h3 = document.createElement('h3');
+            h3.className = 'font-bold text-xl mb-1 text-slate-800';
+            h3.textContent = 'Сообщить об ошибке';
+
+            const p = document.createElement('p');
+            p.className = 'text-sm text-slate-500 mb-3';
+            p.textContent = `В курсе «${unit.title}»`;
+
+            const privacyNote = document.createElement('p');
+            privacyNote.className = 'text-[11px] leading-relaxed text-slate-400 bg-slate-50 border border-slate-100 rounded-2xl p-3 mb-3 text-left';
+            privacyNote.textContent = 'Когда вы отправляете исправление, текст сообщения передаётся администратору проекта для проверки. Не отправляйте личные данные.';
+
+            const hintBox = document.createElement('div');
+            hintBox.className = 'text-left mb-3 bg-slate-50 border border-slate-100 rounded-2xl p-3';
+            hintBox.innerHTML = `
+                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-2">Пример описания:</p>
+                <p class="text-xs text-slate-500 leading-relaxed mb-2">
+                    «В задании на перевод правильный ответ не принимается, хотя он корректен...»
+                </p>
+                <p class="text-xs text-slate-400 mb-2">Или выберите быстрый вариант:</p>
+                <div class="flex flex-wrap gap-1.5" id="course-hint-chips"></div>
+            `;
+
+            const form = document.createElement('form');
+            form.className = 'flex flex-col flex-1 min-h-0';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'w-full flex-1 p-3 border border-slate-200 rounded-2xl bg-slate-50 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all';
+            textarea.placeholder = 'Опишите что не так и как должно быть правильно...';
+            textarea.required = true;
+            textarea.style.minHeight = '90px';
+
+            form.appendChild(textarea);
+            wrap.append(iconWrap, h3, p, privacyNote, hintBox, form);
+
+            const chips = [
+                { label: '❌ Ошибка в задании', text: 'Ошибка в задании: ' },
+                { label: '✏️ Опечатка', text: 'Опечатка в тексте: ' },
+                { label: '🔊 Проблема с аудио', text: 'Проблема с аудио: ' }
+            ];
+
+            setTimeout(() => {
+                const chipsContainer = document.getElementById('course-hint-chips');
+                if (!chipsContainer) return;
+                chips.forEach(chip => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'text-[11px] px-2.5 py-1 bg-white border border-slate-200 text-slate-600 rounded-xl active:bg-emerald-50 active:border-emerald-200 active:text-emerald-700 transition-colors';
+                    btn.textContent = chip.label;
+                    btn.addEventListener('click', () => {
+                        textarea.value = chip.text;
+                        textarea.focus();
+                        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+                    });
+                    chipsContainer.appendChild(btn);
+                });
+            }, 0);
+
+            const footer = document.createElement('div');
+            footer.className = 'border-t p-4 flex gap-3 bg-white';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'flex-1 py-3 bg-slate-100 active:bg-slate-200 text-slate-600 font-semibold rounded-3xl text-sm transition-colors';
+            cancelBtn.textContent = 'Отмена';
+            cancelBtn.addEventListener('click', () => closeModal());
+
+            const sendBtn = document.createElement('button');
+            sendBtn.className = 'flex-1 py-3 bg-emerald-500 active:bg-emerald-600 text-white font-semibold rounded-3xl text-sm transition-colors flex justify-center items-center gap-2';
+            sendBtn.innerHTML = '<span>Отправить</span>';
+
+            sendBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const text = textarea.value.trim();
+                if (!text) {
+                    textarea.focus();
+                    return;
+                }
+                if (text.length > 1000) {
+                    alert('Описание слишком длинное. Максимум — 1000 символов.');
+                    return;
+                }
+
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Отправка...</span>';
+                sendBtn.classList.add('opacity-70');
+
+                const payload = {
+                    wordId: 'COURSE_ISSUE',
+                    word: String('Курс: ' + unit.title).slice(0, 120),
+                    translation: String('Задание: ' + JSON.stringify(ex)).slice(0, 180),
+                    message: text,
+                    appVersion: APP_VERSION,
+                    createdAt: new Date().toISOString()
+                };
+
+                try {
+                    const endpoints = ['/api/report-word.php', '/api/report-word', '/.netlify/functions/report-word'];
+                    let sent = false;
+                    for (const endpoint of endpoints) {
+                        try {
+                            const response = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) {
+                                sent = true;
+                                break;
+                            }
+                        } catch (endpointError) {
+                            warn('[Course Report] endpoint failed', endpoint, endpointError);
+                        }
+                    }
+
+                    if (!sent) throw new Error('All endpoints failed');
+                    
+                    closeModal();
+                    alert('Спасибо! Ваше сообщение отправлено.');
+
+                } catch (err) {
+                    warn('[Course Report] failed', err);
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<span>Отправить</span>';
+                    sendBtn.classList.remove('opacity-70');
+                    setTimeout(() => alert('Не удалось отправить сообщение. Попробуйте позже.'), 10);
+                }
+            });
+
+            footer.append(cancelBtn, sendBtn);
+            content.append(wrap, footer);
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
@@ -918,7 +1083,24 @@
             info.textContent = `Результат: ${score} из ${total}`;
 
             const actions = document.createElement('div');
-            actions.className = 'mt-9 flex gap-3 w-full';
+            actions.className = 'mt-9 flex flex-col gap-3 w-full';
+
+            const allUnits = COURSE.flatMap(m => m.units);
+            const currentIdx = allUnits.findIndex(u => u.id === unitId);
+            const nextUnit = (currentIdx !== -1 && currentIdx < allUnits.length - 1) ? allUnits[currentIdx + 1] : null;
+
+            if (nextUnit) {
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-3xl text-sm transition-colors shadow-md shadow-emerald-100';
+                nextBtn.textContent = 'Следующий курс';
+                nextBtn.addEventListener('click', () => {
+                    startCourseExercises(nextUnit);
+                });
+                actions.append(nextBtn);
+            }
+
+            const secondaryActions = document.createElement('div');
+            secondaryActions.className = 'flex gap-3 w-full';
 
             const closeBtn = document.createElement('button');
             closeBtn.className = 'flex-1 py-4 border border-slate-200 active:bg-slate-50 font-semibold rounded-3xl text-sm transition-colors';
@@ -929,13 +1111,18 @@
             });
 
             const againBtn = document.createElement('button');
-            againBtn.className = 'flex-1 py-4 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-3xl text-sm transition-colors shadow-md shadow-emerald-100';
+            if (nextUnit) {
+                againBtn.className = 'flex-1 py-4 border border-emerald-200 active:bg-emerald-50 text-emerald-700 font-semibold rounded-3xl text-sm transition-colors';
+            } else {
+                againBtn.className = 'flex-1 py-4 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-3xl text-sm transition-colors shadow-md shadow-emerald-100';
+            }
             againBtn.textContent = 'Ещё раз';
             againBtn.addEventListener('click', () => {
                 startCourseExercises(courseExState.unit);
             });
 
-            actions.append(closeBtn, againBtn);
+            secondaryActions.append(closeBtn, againBtn);
+            actions.append(secondaryActions);
             resWrap.append(info, actions);
             content.appendChild(resWrap);
         }

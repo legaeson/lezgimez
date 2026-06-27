@@ -1,4 +1,4 @@
-const CACHE_VERSION = '2.2.11';
+const CACHE_VERSION = '2.2.11-beta';
 const CACHE_NAME = `lezgimez-pwa-v${CACHE_VERSION}`;
 
 const ALPHABET_AUDIO_FILES = [
