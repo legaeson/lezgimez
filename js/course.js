@@ -141,7 +141,6 @@
             const theoryWrap = document.createElement('div');
             theoryWrap.className = 'bg-white border border-slate-100 rounded-3xl p-6 mb-6 shadow-sm grammar-content';
             theoryWrap.innerHTML = renderCourseTheoryMd(unit.theory || '');
-
             // Start button
             const startBtn = document.createElement('button');
             startBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base transition-colors shadow-md shadow-emerald-100 flex items-center justify-center gap-2';
@@ -174,12 +173,40 @@
         // ==================== COURSE EXERCISE ENGINE ====================
 
         function startCourseExercises(unit) {
+            let exercises = [...unit.exercises];
+            
+            // Add translation exercises based on flashcards
+            const vocab = exercises.filter(e => e.type === 'flashcard' && e.lz && e.ru);
+            if (vocab.length > 0) {
+                // Add 1 random Ru -> Lz
+                const shuffled1 = [...vocab].sort(() => 0.5 - Math.random());
+                shuffled1.slice(0, 1).forEach(v => {
+                    exercises.splice(exercises.length - 1, 0, {
+                        type: 'translate',
+                        from: 'ru',
+                        text: v.ru,
+                        answer: v.lz
+                    });
+                });
+                
+                // Add 2 random Lz -> Ru (Reverse translate as requested)
+                const shuffled2 = [...vocab].sort(() => 0.5 - Math.random());
+                shuffled2.slice(0, 2).forEach(v => {
+                    exercises.splice(exercises.length - 1, 0, {
+                        type: 'translate',
+                        from: 'lz',
+                        text: v.lz,
+                        answer: v.ru
+                    });
+                });
+            }
+
             courseExState = {
                 unit: unit,
-                exercises: [...unit.exercises],
+                exercises: exercises,
                 idx: 0,
                 score: 0,
-                total: unit.exercises.length,
+                total: exercises.length,
                 answers: []
             };
             showCourseExercise();
@@ -243,6 +270,7 @@
                 case 'quiz': renderCourseQuiz(body, ex); break;
                 case 'classifying': renderCourseClassifying(body, ex); break;
                 case 'listening': renderCourseQuiz(body, ex); break;
+                case 'qa': renderCourseQA(body, ex); break;
                 default: renderCourseQuiz(body, ex); break;
             }
 
@@ -414,6 +442,71 @@
             modal.classList.add('flex');
         }
 
+        function courseLevenshtein(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        function courseCheckAnswer(user, acceptListStr) {
+            const sanitize = str => str.trim().toLowerCase().replace(/[.!?,;:]/g, '').replace(/\s+/g, ' ').replace(/[1ӏl]/g, 'i').replace(/Ӏ/gi, 'i');
+            const sanitizedUser = sanitize(user);
+            
+            let acceptList = [];
+            acceptListStr.forEach(orig => {
+                orig.split(/[/|]/).forEach(part => {
+                    acceptList.push({ original: part.trim(), sanitized: sanitize(part) });
+                });
+            });
+
+            for (let valid of acceptList) {
+                if (valid.sanitized === sanitizedUser) return { correct: true, typo: false, match: valid.original };
+            }
+            for (let valid of acceptList) {
+                if (valid.sanitized.length >= 4) {
+                    const limit = valid.sanitized.length >= 8 ? 2 : 1;
+                    const dist = courseLevenshtein(sanitizedUser, valid.sanitized);
+                    if (dist <= limit) return { correct: true, typo: true, match: valid.original };
+                }
+            }
+            return { correct: false, typo: false };
+        }
+
+        function courseShowContinueBtn(container, isCorrect) {
+            if (container.querySelector('.course-continue-btn')) return;
+            
+            Array.from(container.querySelectorAll('button')).forEach(b => {
+                if (b.textContent.trim() === 'Проверить') {
+                    b.classList.add('hidden');
+                }
+            });
+
+            const btnWrap = document.createElement('div');
+            btnWrap.className = 'mt-6 w-full animate-fade-in course-continue-btn';
+            const btn = document.createElement('button');
+            btn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base transition-colors shadow-md shadow-emerald-100';
+            btn.textContent = 'Продолжить';
+            btn.addEventListener('click', () => courseNextExercise(isCorrect));
+            btnWrap.appendChild(btn);
+            container.appendChild(btnWrap);
+            setTimeout(() => btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+        }
+
         function courseNextExercise(correct) {
             if (correct) {
                 courseExState.score++;
@@ -493,7 +586,7 @@
                         hint.textContent = ex.hint;
                         wrap.appendChild(hint);
                     }
-                    setTimeout(() => courseNextExercise(correct), 1200);
+                    courseShowContinueBtn(wrap, correct);
                 });
                 optionsWrap.appendChild(btn);
             });
@@ -525,7 +618,7 @@
             const rightCol = document.createElement('div');
             rightCol.className = 'flex-1 flex flex-col gap-2';
 
-            function checkMatch(leftIdx, rightIdx) {
+            function checkMatch(leftIdx, rightIdx, rightBtnEl) {
                 if (leftIdx === rightIdx) {
                     matchedCount++;
                     // Mark both as matched
@@ -534,27 +627,37 @@
                             el.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-emerald-50 border-2 border-emerald-300 text-emerald-700 transition-all pointer-events-none';
                         }
                     });
-                    rightCol.querySelectorAll('[data-idx]').forEach(el => {
-                        if (parseInt(el.dataset.idx) === rightIdx) {
-                            el.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-emerald-50 border-2 border-emerald-300 text-emerald-700 transition-all pointer-events-none';
-                        }
-                    });
+                    rightBtnEl.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-emerald-50 border-2 border-emerald-300 text-emerald-700 transition-all pointer-events-none';
                     vibrateSuccess();
                     if (matchedCount >= pairs.length) {
-                        setTimeout(() => courseNextExercise(errors === 0), 600);
+                        courseShowContinueBtn(wrap, errors === 0);
                     }
+                    selectedLeft = null;
                 } else {
                     errors++;
                     vibrateError();
-                }
-                selectedLeft = null;
-                // Reset left selection visuals
-                leftCol.querySelectorAll('[data-idx]').forEach(el => {
-                    if (!el.classList.contains('pointer-events-none')) {
-                        el.classList.remove('border-emerald-500', 'bg-emerald-50');
-                        el.classList.add('border-slate-200', 'bg-white');
+                    
+                    let leftBtnEl = null;
+                    leftCol.querySelectorAll('[data-idx]').forEach(el => {
+                        if (parseInt(el.dataset.idx) === leftIdx) leftBtnEl = el;
+                    });
+                    
+                    if (leftBtnEl) {
+                        leftBtnEl.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-red-50 border-2 border-red-400 text-red-700 transition-all animate-shake pointer-events-none';
                     }
-                });
+                    rightBtnEl.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-red-50 border-2 border-red-400 text-red-700 transition-all animate-shake pointer-events-none';
+                    
+                    grid.style.pointerEvents = 'none';
+
+                    setTimeout(() => {
+                        grid.style.pointerEvents = 'auto';
+                        if (leftBtnEl) {
+                            leftBtnEl.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-white border-2 border-slate-200 text-slate-800 hover:border-emerald-300 active:scale-95 transition-all text-left';
+                        }
+                        rightBtnEl.className = 'py-3 px-3 rounded-2xl text-sm font-semibold bg-white border-2 border-slate-200 text-slate-800 hover:border-emerald-300 active:scale-95 transition-all text-left';
+                        selectedLeft = null;
+                    }, 500);
+                }
             }
 
             leftItems.forEach(item => {
@@ -585,7 +688,7 @@
                 btn.addEventListener('click', () => {
                     if (btn.classList.contains('pointer-events-none')) return;
                     if (selectedLeft === null) return;
-                    checkMatch(selectedLeft, item.idx);
+                    checkMatch(selectedLeft, item.idx, btn);
                 });
                 rightCol.appendChild(btn);
             });
@@ -648,7 +751,7 @@
 
                     // Count how many times this specific index word is used
                     const btn = document.createElement('button');
-                    btn.className = `px-4 py-2 rounded-2xl text-sm font-semibold transition-all ${available ? 'bg-white border-2 border-slate-200 text-slate-800 hover:border-emerald-300 active:scale-95' : 'bg-slate-100 border-2 border-slate-100 text-slate-300 pointer-events-none'}`;
+                    btn.className = `px-4 py-2 rounded-2xl text-sm font-semibold transition-all ${available ? 'bg-white border-2 border-slate-200 text-slate-800 hover:border-emerald-300 active:scale-95' : 'invisible pointer-events-none'}`;
                     btn.textContent = w;
                     if (available) {
                         btn.addEventListener('click', () => {
@@ -677,7 +780,7 @@
                     wrap.appendChild(correctAnswer);
                 }
                 checkBtn.disabled = true;
-                setTimeout(() => courseNextExercise(correct), 1200);
+                courseShowContinueBtn(wrap, correct);
             });
 
             updateTarget();
@@ -726,7 +829,7 @@
                     }
                     // Show filled sentence
                     sentence.textContent = ex.sentence.replace('___', ex.options[ex.correct]);
-                    setTimeout(() => courseNextExercise(correct), 1200);
+                    courseShowContinueBtn(wrap, correct);
                 });
                 optionsWrap.appendChild(btn);
             });
@@ -767,13 +870,19 @@
             const doCheck = () => {
                 if (answered) return;
                 answered = true;
-                const userAnswer = input.value.trim().toLowerCase().replace(/[.!?,;:]/g, '');
-                const acceptList = (ex.accept || [ex.answer]).map(a => a.toLowerCase().replace(/[.!?,;:]/g, ''));
-                const correct = acceptList.includes(userAnswer);
+                
+                const result = courseCheckAnswer(input.value, ex.accept || [ex.answer]);
+                const correct = result.correct;
 
                 input.disabled = true;
                 if (correct) {
                     input.className = 'w-full px-5 py-4 bg-emerald-50 border-2 border-emerald-500 rounded-2xl text-base outline-none text-emerald-700 font-semibold';
+                    if (result.typo) {
+                        const typoMsg = document.createElement('div');
+                        typoMsg.className = 'text-sm text-emerald-700 bg-emerald-100 rounded-2xl px-4 py-3 mt-2';
+                        typoMsg.innerHTML = `<strong>Почти правильно! Опечатка:</strong><br>Правильный ответ: ${result.match}`;
+                        wrap.appendChild(typoMsg);
+                    }
                 } else {
                     input.className = 'w-full px-5 py-4 bg-red-50 border-2 border-red-300 rounded-2xl text-base outline-none text-red-700';
                     const correctAnswer = document.createElement('div');
@@ -782,7 +891,7 @@
                     wrap.appendChild(correctAnswer);
                 }
                 checkBtn.disabled = true;
-                setTimeout(() => courseNextExercise(correct), 1500);
+                courseShowContinueBtn(wrap, correct);
             };
 
             checkBtn.addEventListener('click', doCheck);
@@ -792,6 +901,61 @@
             body.appendChild(wrap);
             setTimeout(() => input.focus(), 100);
         }
+
+        // ---- QA ----
+        function renderCourseQA(body, ex) {
+            const wrap = document.createElement('div');
+
+            const textCard = document.createElement('div');
+            textCard.className = 'text-xl font-semibold text-emerald-900 bg-emerald-50 border border-emerald-100 rounded-2xl px-5 py-4 mb-4 text-center';
+            textCard.textContent = ex.question;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Ответ...';
+            input.className = 'w-full px-5 py-4 bg-white border-2 border-slate-200 focus:border-emerald-500 rounded-2xl text-base outline-none transition-all mb-4';
+            input.autocomplete = 'off';
+
+            const checkBtn = document.createElement('button');
+            checkBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base transition-colors';
+            checkBtn.textContent = 'Проверить';
+
+            let answered = false;
+            const doCheck = () => {
+                if (answered) return;
+                answered = true;
+                
+                const result = courseCheckAnswer(input.value, [ex.answer]);
+                const correct = result.correct;
+
+                input.disabled = true;
+                if (correct) {
+                    input.className = 'w-full px-5 py-4 bg-emerald-50 border-2 border-emerald-500 rounded-2xl text-base outline-none text-emerald-700 font-semibold';
+                    if (result.typo) {
+                        const typoMsg = document.createElement('div');
+                        typoMsg.className = 'text-sm text-emerald-700 bg-emerald-100 rounded-2xl px-4 py-3 mt-2';
+                        typoMsg.innerHTML = `<strong>Почти правильно! Опечатка:</strong><br>Правильный ответ: ${result.match}`;
+                        wrap.appendChild(typoMsg);
+                    }
+                } else {
+                    input.className = 'w-full px-5 py-4 bg-red-50 border-2 border-red-300 rounded-2xl text-base outline-none text-red-700';
+                    const correctAnswer = document.createElement('div');
+                    correctAnswer.className = 'text-sm text-emerald-700 bg-emerald-50 rounded-2xl px-4 py-3 mt-2';
+                    correctAnswer.textContent = `Правильный ответ: ${ex.answer}`;
+                    wrap.appendChild(correctAnswer);
+                }
+                checkBtn.disabled = true;
+                courseShowContinueBtn(wrap, correct);
+            };
+
+            checkBtn.addEventListener('click', doCheck);
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doCheck(); });
+
+            wrap.append(textCard, input, checkBtn);
+            body.appendChild(wrap);
+            setTimeout(() => input.focus(), 100);
+        }
+
 
         // ---- DIALOG ----
         function renderCourseDialog(body, ex) {
@@ -809,7 +973,7 @@
 
             function renderNextLine() {
                 if (lineIdx >= ex.lines.length) {
-                    setTimeout(() => courseNextExercise(dialogErrors === 0), 800);
+                    courseShowContinueBtn(wrap, dialogErrors === 0);
                     return;
                 }
 
@@ -885,24 +1049,37 @@
         function renderCourseQuiz(body, ex) {
             const wrap = document.createElement('div');
 
+            const isInfoOnly = (!ex.options || ex.options.length === 0) && !ex.question;
+
             const prompt = document.createElement('div');
             prompt.className = 'text-lg font-bold text-slate-800 mb-4';
-            prompt.textContent = ex.question || ex.prompt || 'Выберите правильный ответ';
+            prompt.textContent = ex.question || ex.prompt || (isInfoOnly ? 'Прослушайте аудио' : 'Выберите правильный ответ');
 
             const optionsWrap = document.createElement('div');
             optionsWrap.className = 'flex flex-col gap-2';
             let answered = false;
 
-            const options = Array.isArray(ex.options) ? ex.options : Object.values(ex.options);
-            const correctIdx = typeof ex.correct === 'number' ? ex.correct : options.indexOf(ex.options[ex.correct]);
+            const rawOptions = ex.options || [ex.correct || 'Далее'];
+            const options = Array.isArray(rawOptions) ? rawOptions : Object.values(rawOptions);
+            const correctIdx = typeof ex.correct === 'number' ? ex.correct : options.indexOf(ex.correct || options[0]);
 
             options.forEach((opt, i) => {
+                const isOnlyContinue = options.length === 1 && (opt === 'Далее' || isInfoOnly);
                 const btn = document.createElement('button');
                 btn.className = 'w-full py-3.5 px-5 bg-white border-2 border-slate-200 rounded-2xl text-base font-semibold text-slate-800 hover:border-emerald-300 active:scale-[0.98] transition-all text-left';
+                if (isOnlyContinue) {
+                    btn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base transition-colors shadow-md shadow-emerald-100 mt-4 text-center';
+                }
                 btn.textContent = opt;
                 btn.addEventListener('click', () => {
                     if (answered) return;
                     answered = true;
+
+                    if (isOnlyContinue) {
+                        courseNextExercise(true);
+                        return;
+                    }
+
                     const correct = i === correctIdx;
                     btn.className = `w-full py-3.5 px-5 rounded-2xl text-base font-semibold border-2 transition-all text-left ${correct ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-red-50 border-red-300 text-red-700 animate-shake'}`;
                     if (!correct) {
@@ -914,12 +1091,50 @@
                         expl.textContent = ex.explanation;
                         wrap.appendChild(expl);
                     }
-                    setTimeout(() => courseNextExercise(correct), 1400);
+                    courseShowContinueBtn(wrap, correct);
                 });
                 optionsWrap.appendChild(btn);
             });
 
-            wrap.append(prompt, optionsWrap);
+            wrap.append(prompt);
+            
+            if (ex.audioUrl) {
+                const playBtnWrap = document.createElement('div');
+                playBtnWrap.className = 'flex justify-center mb-8 mt-4';
+                const playBtn = document.createElement('button');
+                playBtn.className = 'w-20 h-20 bg-emerald-500 text-white rounded-full flex items-center justify-center text-4xl hover:bg-emerald-600 transition-transform active:scale-95 shadow-lg shadow-emerald-200';
+                playBtn.innerHTML = '<i class="fa-solid fa-volume-up relative -left-0.5"></i>';
+                playBtn.addEventListener('click', () => {
+                    if (typeof speakWord === 'function') {
+                        const path = ex.audioUrl.startsWith('alphabet/') 
+                            ? `audio/${ex.audioUrl}` 
+                            : `assets/audio/${ex.audioUrl}`;
+                        speakWord(ex.lz || ex.ru || null, path);
+                    }
+                });
+                playBtnWrap.appendChild(playBtn);
+                wrap.append(playBtnWrap);
+            }
+
+            if (isInfoOnly && (ex.lz || ex.ru)) {
+                const textWrap = document.createElement('div');
+                textWrap.className = 'bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center mb-8 mt-2 animate-fade-in';
+                if (ex.lz) {
+                    const lzText = document.createElement('div');
+                    lzText.className = 'text-2xl font-extrabold text-emerald-700 mb-2';
+                    lzText.textContent = ex.lz;
+                    textWrap.appendChild(lzText);
+                }
+                if (ex.ru) {
+                    const ruText = document.createElement('div');
+                    ruText.className = 'text-base text-slate-600 font-medium';
+                    ruText.textContent = ex.ru;
+                    textWrap.appendChild(ruText);
+                }
+                wrap.append(textWrap);
+            }
+
+            wrap.append(optionsWrap);
             body.appendChild(wrap);
         }
 
@@ -958,7 +1173,7 @@
                     doneMsg.className = 'text-2xl font-bold text-emerald-600 animate-bounce text-center';
                     doneMsg.textContent = 'Отлично!';
                     itemContainer.appendChild(doneMsg);
-                    setTimeout(() => courseNextExercise(!madeMistake), 1000);
+                    courseShowContinueBtn(wrap, !madeMistake);
                     return;
                 }
 
@@ -1092,9 +1307,10 @@
             if (nextUnit) {
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-3xl text-sm transition-colors shadow-md shadow-emerald-100';
-                nextBtn.textContent = 'Следующий курс';
+                nextBtn.textContent = 'Продолжить';
                 nextBtn.addEventListener('click', () => {
-                    startCourseExercises(nextUnit);
+                    endPractice();
+                    openCourseUnit(nextUnit);
                 });
                 actions.append(nextBtn);
             }

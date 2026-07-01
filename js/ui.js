@@ -448,7 +448,7 @@
             { "letter": "Хъ хъ", "ipa": "/qʰ/" }, { "letter": "Хь хь", "ipa": "/x/" },
             { "letter": "Ц ц", "ipa": "/tsʰ/ ~ /ts/" }, { "letter": "ЦI цI", "ipa": "/ts'/" },
             { "letter": "Ч ч", "ipa": "/tʃʰ/ ~ /tʃ/" }, { "letter": "ЧI чI", "ipa": "/tʃ'/" },
-            { "letter": "Ш ш", "ipa": "/ʃ/" }, { "letter": "Ъ ъ", "ipa": "/ʔ/" },
+            { "letter": "Ш ш", "ipa": "/ʃ/" }, { "letter": "Ы ы", "ipa": "/ɨ/" },
             { "letter": "Э э", "ipa": "/e/" }, { "letter": "Ю ю", "ipa": "/ju/ ~ /y/" }, { "letter": "Я я", "ipa": "/ja/ ~ /æ/" }
         ];
 
@@ -558,13 +558,13 @@
                 speakWord(null, `audio/alphabet/${soundFile}.mp3`);
             });
 
-            if (item.letter === 'Ъ ъ') {
+            if (item.letter === 'Ы ы') {
                 info.append(ipaWrap);
                 body.append(header, info);
 
                 const descBox = document.createElement('div');
                 descBox.className = 'mt-4 bg-slate-50 border border-slate-100 text-slate-700 p-4 rounded-3xl text-sm leading-relaxed shadow-sm';
-                descBox.innerHTML = '<b>Ъ ъ</b> обозначает гортанную смычку. Это не самостоятельный звук, который можно просто прослушать. Он образуется резким смыканием голосовых связок (как пауза в слове «не-а»). В лезгинском языке он делает предшествующий звук более отрывистым или используется в заимствованных словах.';
+                descBox.innerHTML = '<b>Ы ы</b> используется в лезгинском языке. Буква заимствована из русского. Звук произносится почти так же, как в русском языке.';
                 body.append(descBox);
             } else {
                 info.append(ipaWrap, playBtn);
