@@ -1271,9 +1271,26 @@
                     <span>К режимам практики</span>
                 </button>
 
-                <div class="mb-5">
-                    <h1 class="text-4xl font-bold tracking-tighter text-slate-900">Грамматика</h1>
-                    <p id="grammar-stats" class="text-sm text-slate-500 mt-1">Загрузка юнитов...</p>
+                <div class="mb-5 flex justify-between items-center">
+                    <div>
+                        <h1 class="text-4xl font-bold tracking-tighter text-slate-900">Грамматика</h1>
+                        <p id="grammar-stats" class="text-sm text-slate-500 mt-1">Загрузка юнитов...</p>
+                    </div>
+                    <button id="grammar-search-toggle" type="button" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors" title="Поиск">
+                        <i class="fa-solid fa-search"></i>
+                    </button>
+                </div>
+                
+                <!-- Grammar Search Container (collapsible) -->
+                <div id="grammar-search-container" class="hidden mb-6 transition-all duration-300">
+                    <div class="relative w-full">
+                        <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input id="grammar-search-input" type="text" placeholder="Поиск по правилам, падежам или темам..." 
+                            class="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-base placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-400 transition-colors">
+                        <button id="grammar-search-clear" type="button" class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div id="grammar-units-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
@@ -3541,20 +3558,107 @@
             return map[level] || 'Урок';
         }
 
-        function renderGrammar() {
+                function searchGrammar(query) {
+            if (!query) return GRAMMAR;
+            const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+            if (terms.length === 0) return GRAMMAR;
+
+            return GRAMMAR.map(unit => {
+                const title = (unit.title || "").toLowerCase();
+                const contentText = (unit.content || "").toLowerCase();
+                let score = 0;
+
+                terms.forEach(term => {
+                    // Exact or prefix title match is heavily weighted
+                    if (title.includes(term)) {
+                        score += 20;
+                        if (title.startsWith(term)) score += 10;
+                    }
+                    // Full-text occurrences in body text
+                    let idx = -1;
+                    while ((idx = contentText.indexOf(term, idx + 1)) !== -1) {
+                        score += 3;
+                    }
+                });
+
+                return { unit, score };
+            })
+            .filter(item => item.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.unit);
+        }
+
+        function initGrammarSearchBehavior() {
+            const toggleBtn = document.getElementById('grammar-search-toggle');
+            const searchContainer = document.getElementById('grammar-search-container');
+            const searchInput = document.getElementById('grammar-search-input');
+            const searchClear = document.getElementById('grammar-search-clear');
+
+            if (!toggleBtn || !searchContainer || !searchInput) return;
+
+            toggleBtn.addEventListener('click', () => {
+                const isHidden = searchContainer.classList.contains('hidden');
+                if (isHidden) {
+                    searchContainer.classList.remove('hidden');
+                    searchInput.focus();
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-times"></i>';
+                    toggleBtn.className = 'w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors';
+                } else {
+                    searchContainer.classList.add('hidden');
+                    searchInput.value = '';
+                    if (searchClear) searchClear.classList.add('hidden');
+                    renderGrammar();
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-search"></i>';
+                    toggleBtn.className = 'w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors';
+                }
+            });
+
+            let debounceTimer = null;
+            searchInput.addEventListener('input', () => {
+                const val = searchInput.value;
+                if (searchClear) {
+                    searchClear.classList.toggle('hidden', val.length === 0);
+                }
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const filtered = searchGrammar(val);
+                    renderGrammar(filtered);
+                }, 200);
+            });
+
+            if (searchClear) {
+                searchClear.addEventListener('click', () => {
+                    searchInput.value = '';
+                    searchClear.classList.add('hidden');
+                    searchInput.focus();
+                    renderGrammar();
+                });
+            }
+        }
+
+        function renderGrammar(filteredList) {
             const grid = document.getElementById('grammar-units-grid');
             const stats = document.getElementById('grammar-stats');
             if (!grid) return;
             grid.innerHTML = '';
 
-            if (GRAMMAR.length === 0) {
-                grid.innerHTML = '<div class="text-center py-10 text-slate-400">Загрузка материалов...</div>';
+            const list = filteredList || GRAMMAR;
+
+            if (list.length === 0) {
+                grid.innerHTML = '<div class="text-center py-10 text-slate-400">Ничего не найдено. Попробуйте другой запрос.</div>';
                 return;
             }
 
-            if (stats) stats.textContent = `${GRAMMAR.length} уроков • основы и практика`;
+            if (stats) {
+                if (filteredList) {
+                    stats.textContent = `Найдено уроков: ${list.length}`;
+                } else {
+                    stats.textContent = `${GRAMMAR.length} уроков • основы и практика`;
+                }
+            }
 
-            GRAMMAR.forEach(unit => {
+            list.forEach(unit => {
                 const card = document.createElement('div');
                 card.className = 'bg-white border border-slate-100 active:border-emerald-200 rounded-3xl p-5 flex items-center justify-between cursor-pointer shadow-sm hover:shadow-md transition-all';
 
@@ -5040,6 +5144,7 @@
             });
 
             registerSW();
+            initGrammarSearchBehavior();
 
             // Tabs
             document.querySelectorAll('[data-tab]').forEach(btn => {

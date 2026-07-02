@@ -380,6 +380,7 @@
             });
 
             registerSW();
+            initGrammarSearchBehavior();
 
             // Tabs
             document.querySelectorAll('[data-tab]').forEach(btn => {

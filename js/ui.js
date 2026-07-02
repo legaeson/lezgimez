@@ -1265,20 +1265,107 @@
             return map[level] || 'Урок';
         }
 
-        function renderGrammar() {
+                function searchGrammar(query) {
+            if (!query) return GRAMMAR;
+            const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+            if (terms.length === 0) return GRAMMAR;
+
+            return GRAMMAR.map(unit => {
+                const title = (unit.title || "").toLowerCase();
+                const contentText = (unit.content || "").toLowerCase();
+                let score = 0;
+
+                terms.forEach(term => {
+                    // Exact or prefix title match is heavily weighted
+                    if (title.includes(term)) {
+                        score += 20;
+                        if (title.startsWith(term)) score += 10;
+                    }
+                    // Full-text occurrences in body text
+                    let idx = -1;
+                    while ((idx = contentText.indexOf(term, idx + 1)) !== -1) {
+                        score += 3;
+                    }
+                });
+
+                return { unit, score };
+            })
+            .filter(item => item.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .map(item => item.unit);
+        }
+
+        function initGrammarSearchBehavior() {
+            const toggleBtn = document.getElementById('grammar-search-toggle');
+            const searchContainer = document.getElementById('grammar-search-container');
+            const searchInput = document.getElementById('grammar-search-input');
+            const searchClear = document.getElementById('grammar-search-clear');
+
+            if (!toggleBtn || !searchContainer || !searchInput) return;
+
+            toggleBtn.addEventListener('click', () => {
+                const isHidden = searchContainer.classList.contains('hidden');
+                if (isHidden) {
+                    searchContainer.classList.remove('hidden');
+                    searchInput.focus();
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-times"></i>';
+                    toggleBtn.className = 'w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors';
+                } else {
+                    searchContainer.classList.add('hidden');
+                    searchInput.value = '';
+                    if (searchClear) searchClear.classList.add('hidden');
+                    renderGrammar();
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-search"></i>';
+                    toggleBtn.className = 'w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors';
+                }
+            });
+
+            let debounceTimer = null;
+            searchInput.addEventListener('input', () => {
+                const val = searchInput.value;
+                if (searchClear) {
+                    searchClear.classList.toggle('hidden', val.length === 0);
+                }
+
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const filtered = searchGrammar(val);
+                    renderGrammar(filtered);
+                }, 200);
+            });
+
+            if (searchClear) {
+                searchClear.addEventListener('click', () => {
+                    searchInput.value = '';
+                    searchClear.classList.add('hidden');
+                    searchInput.focus();
+                    renderGrammar();
+                });
+            }
+        }
+
+        function renderGrammar(filteredList) {
             const grid = document.getElementById('grammar-units-grid');
             const stats = document.getElementById('grammar-stats');
             if (!grid) return;
             grid.innerHTML = '';
 
-            if (GRAMMAR.length === 0) {
-                grid.innerHTML = '<div class="text-center py-10 text-slate-400">Загрузка материалов...</div>';
+            const list = filteredList || GRAMMAR;
+
+            if (list.length === 0) {
+                grid.innerHTML = '<div class="text-center py-10 text-slate-400">Ничего не найдено. Попробуйте другой запрос.</div>';
                 return;
             }
 
-            if (stats) stats.textContent = `${GRAMMAR.length} уроков • основы и практика`;
+            if (stats) {
+                if (filteredList) {
+                    stats.textContent = `Найдено уроков: ${list.length}`;
+                } else {
+                    stats.textContent = `${GRAMMAR.length} уроков • основы и практика`;
+                }
+            }
 
-            GRAMMAR.forEach(unit => {
+            list.forEach(unit => {
                 const card = document.createElement('div');
                 card.className = 'bg-white border border-slate-100 active:border-emerald-200 rounded-3xl p-5 flex items-center justify-between cursor-pointer shadow-sm hover:shadow-md transition-all';
 
