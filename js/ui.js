@@ -1295,11 +1295,82 @@
             .map(item => item.unit);
         }
 
+        function closeGrammarSearch() {
+            const toggleBtn = document.getElementById('grammar-search-toggle');
+            const searchContainer = document.getElementById('grammar-search-container');
+            const searchInput = document.getElementById('grammar-search-input');
+            const suggestions = document.getElementById('grammar-search-suggestions');
+            const searchClear = document.getElementById('grammar-search-clear');
+
+            if (searchContainer) searchContainer.classList.add('hidden');
+            if (suggestions) suggestions.classList.add('hidden');
+            if (searchInput) searchInput.value = '';
+            if (searchClear) searchClear.classList.add('hidden');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="fa-solid fa-search"></i>';
+                toggleBtn.className = 'w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors';
+            }
+            renderGrammar();
+        }
+
+        function renderGrammarSuggestions(list, isDefault = false) {
+            const suggestions = document.getElementById('grammar-search-suggestions');
+            if (!suggestions) return;
+            suggestions.innerHTML = '';
+
+            if (list.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'px-4 py-3.5 text-sm text-slate-400 text-center';
+                empty.textContent = 'Ничего не найдено';
+                suggestions.appendChild(empty);
+                suggestions.classList.remove('hidden');
+                return;
+            }
+
+            if (isDefault) {
+                const header = document.createElement('div');
+                header.className = 'px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50';
+                header.textContent = 'Рекомендуемые разделы';
+                suggestions.appendChild(header);
+            }
+
+            list.forEach(unit => {
+                const item = document.createElement('div');
+                item.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group';
+
+                const left = document.createElement('div');
+                left.className = 'flex items-center min-w-0';
+                const sub = document.createElement('span');
+                sub.className = 'text-xs text-emerald-600 font-bold mr-3 flex-shrink-0';
+                sub.textContent = `Юнит ${unit.id}`;
+                const title = document.createElement('span');
+                title.className = 'text-sm font-semibold text-slate-700 truncate group-hover:text-emerald-600 transition-colors';
+                title.textContent = unit.title;
+                left.append(sub, title);
+
+                const badge = document.createElement('span');
+                badge.className = 'rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold text-slate-500 uppercase tracking-wide flex-shrink-0 ml-3';
+                badge.textContent = grammarLevelLabel(unit.level);
+
+                item.append(left, badge);
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showGrammarUnit(unit.id);
+                    closeGrammarSearch();
+                });
+                suggestions.appendChild(item);
+            });
+
+            suggestions.classList.remove('hidden');
+        }
+
         function initGrammarSearchBehavior() {
             const toggleBtn = document.getElementById('grammar-search-toggle');
             const searchContainer = document.getElementById('grammar-search-container');
             const searchInput = document.getElementById('grammar-search-input');
             const searchClear = document.getElementById('grammar-search-clear');
+            const suggestions = document.getElementById('grammar-search-suggestions');
 
             if (!toggleBtn || !searchContainer || !searchInput) return;
 
@@ -1310,28 +1381,45 @@
                     searchInput.focus();
                     toggleBtn.innerHTML = '<i class="fa-solid fa-times"></i>';
                     toggleBtn.className = 'w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors';
+                    
+                    // Show default recommendations on empty focus
+                    const defaultList = GRAMMAR.slice(0, 4);
+                    renderGrammarSuggestions(defaultList, true);
                 } else {
-                    searchContainer.classList.add('hidden');
-                    searchInput.value = '';
-                    if (searchClear) searchClear.classList.add('hidden');
-                    renderGrammar();
-                    toggleBtn.innerHTML = '<i class="fa-solid fa-search"></i>';
-                    toggleBtn.className = 'w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors';
+                    closeGrammarSearch();
+                }
+            });
+
+            searchInput.addEventListener('focus', () => {
+                const val = searchInput.value.trim();
+                if (val.length === 0) {
+                    const defaultList = GRAMMAR.slice(0, 4);
+                    renderGrammarSuggestions(defaultList, true);
+                } else {
+                    const filtered = searchGrammar(val);
+                    renderGrammarSuggestions(filtered, false);
                 }
             });
 
             let debounceTimer = null;
             searchInput.addEventListener('input', () => {
-                const val = searchInput.value;
+                const val = searchInput.value.trim();
                 if (searchClear) {
                     searchClear.classList.toggle('hidden', val.length === 0);
                 }
 
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
-                    const filtered = searchGrammar(val);
-                    renderGrammar(filtered);
-                }, 200);
+                    if (val.length === 0) {
+                        const defaultList = GRAMMAR.slice(0, 4);
+                        renderGrammarSuggestions(defaultList, true);
+                        renderGrammar();
+                    } else {
+                        const filtered = searchGrammar(val);
+                        renderGrammarSuggestions(filtered, false);
+                        renderGrammar(filtered);
+                    }
+                }, 150);
             });
 
             if (searchClear) {
@@ -1339,9 +1427,18 @@
                     searchInput.value = '';
                     searchClear.classList.add('hidden');
                     searchInput.focus();
+                    const defaultList = GRAMMAR.slice(0, 4);
+                    renderGrammarSuggestions(defaultList, true);
                     renderGrammar();
                 });
             }
+
+            // Close suggestions when clicking outside
+            document.addEventListener('click', (e) => {
+                if (searchContainer && suggestions && !searchContainer.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+                    suggestions.classList.add('hidden');
+                }
+            });
         }
 
         function renderGrammar(filteredList) {
