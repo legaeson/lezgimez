@@ -1285,8 +1285,9 @@
                 <div id="grammar-search-container" class="hidden mb-6 relative">
                     <div class="relative w-full">
                         <i class="fa-solid fa-search text-slate-400" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 16px;"></i>
-                        <input id="grammar-search-input" type="text" placeholder="Поиск по правилам, падежам или темам..." 
-                            class="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-base placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-400 transition-colors shadow-sm">
+                        <input id="grammar-search-input" type="text" placeholder="Поиск по темам, падежам или правилам..." 
+                            style="padding-left: 48px; padding-right: 40px;"
+                            class="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-base placeholder-slate-400 focus:outline-none focus:bg-white focus:border-emerald-400 transition-colors shadow-sm">
                         <button id="grammar-search-clear" type="button" class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                             <i class="fa-solid fa-times"></i>
                         </button>
@@ -3610,7 +3611,7 @@
             renderGrammar();
         }
 
-        function renderGrammarSuggestions(list, isDefault = false) {
+        function renderGrammarSuggestions(list) {
             const suggestions = document.getElementById('grammar-search-suggestions');
             if (!suggestions) return;
             suggestions.innerHTML = '';
@@ -3624,16 +3625,9 @@
                 return;
             }
 
-            if (isDefault) {
-                const header = document.createElement('div');
-                header.className = 'px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50';
-                header.textContent = 'Рекомендуемые разделы';
-                suggestions.appendChild(header);
-            }
-
             list.forEach(unit => {
                 const item = document.createElement('div');
-                item.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group';
+                item.className = 'px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group';
 
                 const left = document.createElement('div');
                 left.className = 'flex items-center min-w-0';
@@ -3645,11 +3639,7 @@
                 title.textContent = unit.title;
                 left.append(sub, title);
 
-                const badge = document.createElement('span');
-                badge.className = 'rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold text-slate-500 uppercase tracking-wide flex-shrink-0 ml-3';
-                badge.textContent = grammarLevelLabel(unit.level);
-
-                item.append(left, badge);
+                item.append(left);
 
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -3669,7 +3659,7 @@
             const searchClear = document.getElementById('grammar-search-clear');
             const suggestions = document.getElementById('grammar-search-suggestions');
 
-            if (!toggleBtn || !searchContainer || !searchInput) return;
+            if (!toggleBtn || !searchContainer || !searchInput || !suggestions) return;
 
             toggleBtn.addEventListener('click', () => {
                 const isHidden = searchContainer.classList.contains('hidden');
@@ -3678,10 +3668,6 @@
                     searchInput.focus();
                     toggleBtn.innerHTML = '<i class="fa-solid fa-times"></i>';
                     toggleBtn.className = 'w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors';
-                    
-                    // Show default recommendations on empty focus
-                    const defaultList = GRAMMAR.slice(0, 4);
-                    renderGrammarSuggestions(defaultList, true);
                 } else {
                     closeGrammarSearch();
                 }
@@ -3690,11 +3676,10 @@
             searchInput.addEventListener('focus', () => {
                 const val = searchInput.value.trim();
                 if (val.length === 0) {
-                    const defaultList = GRAMMAR.slice(0, 4);
-                    renderGrammarSuggestions(defaultList, true);
+                    suggestions.classList.add('hidden');
                 } else {
                     const filtered = searchGrammar(val);
-                    renderGrammarSuggestions(filtered, false);
+                    renderGrammarSuggestions(filtered);
                 }
             });
 
@@ -3708,12 +3693,11 @@
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                     if (val.length === 0) {
-                        const defaultList = GRAMMAR.slice(0, 4);
-                        renderGrammarSuggestions(defaultList, true);
+                        suggestions.classList.add('hidden');
                         renderGrammar();
                     } else {
                         const filtered = searchGrammar(val);
-                        renderGrammarSuggestions(filtered, false);
+                        renderGrammarSuggestions(filtered);
                         renderGrammar(filtered);
                     }
                 }, 150);
@@ -3724,8 +3708,7 @@
                     searchInput.value = '';
                     searchClear.classList.add('hidden');
                     searchInput.focus();
-                    const defaultList = GRAMMAR.slice(0, 4);
-                    renderGrammarSuggestions(defaultList, true);
+                    suggestions.classList.add('hidden');
                     renderGrammar();
                 });
             }

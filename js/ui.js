@@ -1313,7 +1313,7 @@
             renderGrammar();
         }
 
-        function renderGrammarSuggestions(list, isDefault = false) {
+        function renderGrammarSuggestions(list) {
             const suggestions = document.getElementById('grammar-search-suggestions');
             if (!suggestions) return;
             suggestions.innerHTML = '';
@@ -1327,16 +1327,9 @@
                 return;
             }
 
-            if (isDefault) {
-                const header = document.createElement('div');
-                header.className = 'px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50';
-                header.textContent = 'Рекомендуемые разделы';
-                suggestions.appendChild(header);
-            }
-
             list.forEach(unit => {
                 const item = document.createElement('div');
-                item.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group';
+                item.className = 'px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-colors group';
 
                 const left = document.createElement('div');
                 left.className = 'flex items-center min-w-0';
@@ -1348,11 +1341,7 @@
                 title.textContent = unit.title;
                 left.append(sub, title);
 
-                const badge = document.createElement('span');
-                badge.className = 'rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold text-slate-500 uppercase tracking-wide flex-shrink-0 ml-3';
-                badge.textContent = grammarLevelLabel(unit.level);
-
-                item.append(left, badge);
+                item.append(left);
 
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -1372,7 +1361,7 @@
             const searchClear = document.getElementById('grammar-search-clear');
             const suggestions = document.getElementById('grammar-search-suggestions');
 
-            if (!toggleBtn || !searchContainer || !searchInput) return;
+            if (!toggleBtn || !searchContainer || !searchInput || !suggestions) return;
 
             toggleBtn.addEventListener('click', () => {
                 const isHidden = searchContainer.classList.contains('hidden');
@@ -1381,10 +1370,6 @@
                     searchInput.focus();
                     toggleBtn.innerHTML = '<i class="fa-solid fa-times"></i>';
                     toggleBtn.className = 'w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors';
-                    
-                    // Show default recommendations on empty focus
-                    const defaultList = GRAMMAR.slice(0, 4);
-                    renderGrammarSuggestions(defaultList, true);
                 } else {
                     closeGrammarSearch();
                 }
@@ -1393,11 +1378,10 @@
             searchInput.addEventListener('focus', () => {
                 const val = searchInput.value.trim();
                 if (val.length === 0) {
-                    const defaultList = GRAMMAR.slice(0, 4);
-                    renderGrammarSuggestions(defaultList, true);
+                    suggestions.classList.add('hidden');
                 } else {
                     const filtered = searchGrammar(val);
-                    renderGrammarSuggestions(filtered, false);
+                    renderGrammarSuggestions(filtered);
                 }
             });
 
@@ -1411,12 +1395,11 @@
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                     if (val.length === 0) {
-                        const defaultList = GRAMMAR.slice(0, 4);
-                        renderGrammarSuggestions(defaultList, true);
+                        suggestions.classList.add('hidden');
                         renderGrammar();
                     } else {
                         const filtered = searchGrammar(val);
-                        renderGrammarSuggestions(filtered, false);
+                        renderGrammarSuggestions(filtered);
                         renderGrammar(filtered);
                     }
                 }, 150);
@@ -1427,8 +1410,7 @@
                     searchInput.value = '';
                     searchClear.classList.add('hidden');
                     searchInput.focus();
-                    const defaultList = GRAMMAR.slice(0, 4);
-                    renderGrammarSuggestions(defaultList, true);
+                    suggestions.classList.add('hidden');
                     renderGrammar();
                 });
             }
