@@ -22,6 +22,7 @@
         const SCHEMA_VERSION = 1;
         let deferredPrompt = null;
         let tabSwitchGuard = false;
+        let isClosingProgrammatically = false;
 
         const NICE_CATEGORY_NAMES = {
             'анатомия': 'Анатомия', 'быт': 'Быт', 'война': 'Война', 'время': 'Время', 'глаголы': 'Глаголы',

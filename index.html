@@ -967,7 +967,7 @@
         <div class="mt-6 w-72 max-w-[82vw] text-left text-xs text-slate-500 space-y-2">
             <div id="loader-step-words"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Словарь</div>
             <div id="loader-step-grammar"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Грамматика</div>
-            <div id="loader-step-audio"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Озвучка алфавита</div>
+            <div id="loader-step-audio"><i class="fa-regular fa-circle mr-3 text-slate-300"></i>Курс</div>
         </div>
         <button id="loader-skip-btn" type="button" class="mt-6 text-xs font-bold text-slate-400 hover:text-emerald-600 transition-colors">Открыть сразу</button>
     </div>
@@ -1633,7 +1633,29 @@
 
         function runFallbackSpeech(text) {
             const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = 'ru-RU';
+            
+            if (typeof speechSynthesis !== 'undefined' && typeof speechSynthesis.getVoices === 'function') {
+                const voices = speechSynthesis.getVoices();
+                // 1. Try to find a Georgian voice
+                let voice = voices.find(v => v.lang.startsWith('ka') || v.lang.startsWith('GE') || v.name.toLowerCase().includes('georgian'));
+                if (voice) {
+                    utter.voice = voice;
+                    utter.lang = voice.lang;
+                } else {
+                    // 2. Fallback to Turkish (much closer phonetic engine than Russian)
+                    voice = voices.find(v => v.lang.startsWith('tr') || v.name.toLowerCase().includes('turkish'));
+                    if (voice) {
+                        utter.voice = voice;
+                        utter.lang = voice.lang;
+                    } else {
+                        // 3. Fallback to default Georgian code
+                        utter.lang = 'ka-GE';
+                    }
+                }
+            } else {
+                utter.lang = 'ka-GE';
+            }
+            
             speechSynthesis.speak(utter);
         }
 
@@ -1674,6 +1696,7 @@
         const SCHEMA_VERSION = 1;
         let deferredPrompt = null;
         let tabSwitchGuard = false;
+        let isClosingProgrammatically = false;
 
         const NICE_CATEGORY_NAMES = {
             'анатомия': 'Анатомия', 'быт': 'Быт', 'война': 'Война', 'время': 'Время', 'глаголы': 'Глаголы',
@@ -2746,6 +2769,11 @@
 
         function showAlphabetModal(item) {
             const modal = document.getElementById('word-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('modal-content');
             content.innerHTML = '';
 
@@ -3063,6 +3091,11 @@
             if (!word) return;
 
             const modal = document.getElementById('word-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('modal-content');
 
             content.innerHTML = '';
@@ -3081,10 +3114,25 @@
             catSpan.className = 'uppercase tracking-[1.5px] text-emerald-600 text-sm font-bold';
             catSpan.textContent = word.cat;
             catRow.append(catSpan);
+            
+            const h1Row = document.createElement('div');
+            h1Row.className = 'flex items-center gap-3 mt-1';
             const h1 = document.createElement('div');
-            h1.className = 'text-[42px] leading-none font-bold text-emerald-900 mt-1 lezgin-text';
+            h1.className = 'text-[42px] leading-none font-bold text-emerald-900 lezgin-text';
             h1.textContent = word.lz;
-            left.append(catRow, h1);
+            
+            const playBtn = document.createElement('button');
+            playBtn.className = 'w-10 h-10 flex flex-shrink-0 items-center justify-center bg-emerald-500 text-white active:bg-emerald-600 rounded-full text-base transition-transform active:scale-95 shadow-sm';
+            playBtn.innerHTML = '<i class="fa-solid fa-volume-up"></i>';
+            playBtn.title = 'Прослушать';
+            playBtn.addEventListener('click', () => {
+                if (typeof speakWord === 'function') {
+                    speakWord(word.lz);
+                }
+            });
+            h1Row.append(h1, playBtn);
+            
+            left.append(catRow, h1Row);
 
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3';
@@ -3326,10 +3374,15 @@
 
         function closeModal() {
             const modal = document.getElementById('word-modal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            if (lastDialogTrigger && typeof lastDialogTrigger.focus === 'function') {
-                lastDialogTrigger.focus({ preventScroll: true });
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+                if (lastDialogTrigger && typeof lastDialogTrigger.focus === 'function') {
+                    lastDialogTrigger.focus({ preventScroll: true });
+                }
+                if (!isClosingProgrammatically && history.state && history.state.modalOpen) {
+                    history.back();
+                }
             }
         }
 
@@ -4018,6 +4071,11 @@
 
         function showFlashcard() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
 
@@ -4190,6 +4248,12 @@
         }
         function showQuizQuestion() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
+            const modal_el = document.getElementById('practice-modal'); // Keep original variable binding
             const content = document.getElementById('practice-content');
             const w = practiceState.words[practiceState.idx];
             content.innerHTML = ''; // Очищаем контент
@@ -4413,13 +4477,18 @@
 
         function endPractice() {
             const modal = document.getElementById('practice-modal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            if (flashcardKeydownHandler) {
-                document.removeEventListener('keydown', flashcardKeydownHandler);
-                flashcardKeydownHandler = null;
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+                if (flashcardKeydownHandler) {
+                    document.removeEventListener('keydown', flashcardKeydownHandler);
+                    flashcardKeydownHandler = null;
+                }
+                renderWords(); // Refresh dictionary list
+                if (!isClosingProgrammatically && history.state && history.state.modalOpen) {
+                    history.back();
+                }
             }
-            renderWords(); // Refresh dictionary list
         }
         function startPairs() {
             const pool = practiceCategory === 'all' ? WORDS : WORDS.filter(w => w.cat === practiceCategory);
@@ -4440,6 +4509,11 @@
         }
         function showPairsGame() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
 
@@ -4620,6 +4694,11 @@
         }
         function showOddWordQuestion() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             const q = practiceState.questions[practiceState.idx];
             content.innerHTML = '';
@@ -5029,7 +5108,23 @@
             else switchTab('alphabet');
 
 
-            window.addEventListener('hashchange', () => {
+                    window.addEventListener('popstate', (e) => {
+            isClosingProgrammatically = true;
+            
+            const wordModal = document.getElementById('word-modal');
+            if (wordModal && !wordModal.classList.contains('hidden')) {
+                closeModal();
+            }
+            
+            const practiceModal = document.getElementById('practice-modal');
+            if (practiceModal && !practiceModal.classList.contains('hidden')) {
+                endPractice();
+            }
+            
+            isClosingProgrammatically = false;
+        });
+
+        window.addEventListener('hashchange', () => {
                 if (tabSwitchGuard) return;
                 const h = window.location.hash.replace('#', '');
                 if (h && VALID_TABS.includes(h)) switchTab(h);
@@ -5083,7 +5178,7 @@
             localStorage.setItem('lezgi_course_progress', JSON.stringify(COURSE_PROGRESS));
         }
 
-        function isUnitUnlocked(unitId) { return true;
+        function isUnitUnlocked(unitId) {
             if (!COURSE || COURSE.length === 0) return false;
             // First unit of first module is always unlocked
             const allUnits = [];
@@ -5238,7 +5333,7 @@
         // ==================== COURSE EXERCISE ENGINE ====================
 
         function startCourseExercises(unit) {
-            let exercises = [...unit.exercises];
+            let exercises = [...unit.exercises].filter(e => e.type !== 'listening');
             
             // Add translation exercises based on flashcards
             const vocab = exercises.filter(e => e.type === 'flashcard' && e.lz && e.ru);
@@ -5246,7 +5341,7 @@
                 // Add 1 random Ru -> Lz
                 const shuffled1 = [...vocab].sort(() => 0.5 - Math.random());
                 shuffled1.slice(0, 1).forEach(v => {
-                    exercises.splice(exercises.length - 1, 0, {
+                    exercises.push({
                         type: 'translate',
                         from: 'ru',
                         text: v.ru,
@@ -5257,7 +5352,7 @@
                 // Add 2 random Lz -> Ru (Reverse translate as requested)
                 const shuffled2 = [...vocab].sort(() => 0.5 - Math.random());
                 shuffled2.slice(0, 2).forEach(v => {
-                    exercises.splice(exercises.length - 1, 0, {
+                    exercises.push({
                         type: 'translate',
                         from: 'lz',
                         text: v.lz,
@@ -5266,12 +5361,13 @@
                 });
             }
 
+            const scoreableCount = exercises.filter(e => e.type !== 'flashcard' && !(e.type === 'listening' && (!e.options || e.options.length === 0) && !e.question)).length;
             courseExState = {
                 unit: unit,
                 exercises: exercises,
                 idx: 0,
                 score: 0,
-                total: exercises.length,
+                total: scoreableCount > 0 ? scoreableCount : exercises.length,
                 answers: []
             };
             showCourseExercise();
@@ -5284,6 +5380,11 @@
             }
 
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
             content.classList.add('flex', 'flex-col');
@@ -5612,7 +5713,7 @@
             const btn = document.createElement('button');
             btn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base mt-6 transition-colors';
             btn.textContent = 'Понятно →';
-            btn.addEventListener('click', () => courseNextExercise(true));
+            btn.addEventListener('click', () => courseNextExercise(null));
 
             card.appendChild(btn);
             body.appendChild(card);
@@ -6141,7 +6242,7 @@
                     answered = true;
 
                     if (isOnlyContinue) {
-                        courseNextExercise(true);
+                        courseNextExercise(null);
                         return;
                     }
 
@@ -6178,6 +6279,15 @@
                     }
                 });
                 playBtnWrap.appendChild(playBtn);
+                
+                if (ex.audioUrl === 'placeholder.mp3') {
+                    const ttsWarning = document.createElement('div');
+                    ttsWarning.className = 'text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100 font-medium text-center';
+                    ttsWarning.textContent = '🔊 Автоматическая озвучка (может быть неточной)';
+                    playBtnWrap.className = 'flex flex-col items-center mb-8 mt-4';
+                    playBtnWrap.appendChild(ttsWarning);
+                }
+                
                 wrap.append(playBtnWrap);
             }
 
@@ -6303,9 +6413,11 @@
             const pct = Math.round((score / total) * 100);
             const unitId = courseExState.unit.id;
 
-            // Save progress
-            if (!COURSE_PROGRESS.completedUnits.includes(unitId)) {
-                COURSE_PROGRESS.completedUnits.push(unitId);
+            // Save progress only if score is at least 70%
+            if (pct >= 70) {
+                if (!COURSE_PROGRESS.completedUnits.includes(unitId)) {
+                    COURSE_PROGRESS.completedUnits.push(unitId);
+                }
             }
             COURSE_PROGRESS.scores[unitId] = Math.max(pct, COURSE_PROGRESS.scores[unitId] || 0);
             saveCourseProgress();
@@ -6353,7 +6465,7 @@
 
                 const sub = document.createElement('p');
                 sub.className = 'text-slate-500 text-sm mt-2 mb-6 max-w-[280px]';
-                sub.textContent = 'Юнит засчитан, но попробуйте ещё раз для лучшего результата!';
+                sub.textContent = 'Попробуйте ещё раз, чтобы набрать 70% и открыть следующий юнит!';
 
                 resWrap.append(scoreCircle, title, sub);
             }
@@ -6369,7 +6481,7 @@
             const currentIdx = allUnits.findIndex(u => u.id === unitId);
             const nextUnit = (currentIdx !== -1 && currentIdx < allUnits.length - 1) ? allUnits[currentIdx + 1] : null;
 
-            if (nextUnit) {
+            if (nextUnit && (pct >= 70 || isUnitUnlocked(nextUnit.id))) {
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-3xl text-sm transition-colors shadow-md shadow-emerald-100';
                 nextBtn.textContent = 'Продолжить';
@@ -6412,6 +6524,25 @@
 
 
 
+
+                // One-time listener to unlock iOS speech synthesis and audio HTML element
+        function unlockIosAudio() {
+            if (typeof speechSynthesis !== 'undefined') {
+                try {
+                    const utterance = new SpeechSynthesisUtterance('');
+                    speechSynthesis.speak(utterance);
+                } catch(e) {}
+            }
+            if (typeof AUDIO_PLAYER !== 'undefined' && AUDIO_PLAYER) {
+                AUDIO_PLAYER.play().then(() => {
+                    AUDIO_PLAYER.pause();
+                }).catch(() => {});
+            }
+            document.removeEventListener('touchstart', unlockIosAudio);
+            document.removeEventListener('click', unlockIosAudio);
+        }
+        document.addEventListener('touchstart', unlockIosAudio);
+        document.addEventListener('click', unlockIosAudio);
 
         document.addEventListener('DOMContentLoaded', init);
     </script>

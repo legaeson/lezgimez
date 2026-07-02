@@ -45,7 +45,29 @@
 
         function runFallbackSpeech(text) {
             const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = 'ru-RU';
+            
+            if (typeof speechSynthesis !== 'undefined' && typeof speechSynthesis.getVoices === 'function') {
+                const voices = speechSynthesis.getVoices();
+                // 1. Try to find a Georgian voice
+                let voice = voices.find(v => v.lang.startsWith('ka') || v.lang.startsWith('GE') || v.name.toLowerCase().includes('georgian'));
+                if (voice) {
+                    utter.voice = voice;
+                    utter.lang = voice.lang;
+                } else {
+                    // 2. Fallback to Turkish (much closer phonetic engine than Russian)
+                    voice = voices.find(v => v.lang.startsWith('tr') || v.name.toLowerCase().includes('turkish'));
+                    if (voice) {
+                        utter.voice = voice;
+                        utter.lang = voice.lang;
+                    } else {
+                        // 3. Fallback to default Georgian code
+                        utter.lang = 'ka-GE';
+                    }
+                }
+            } else {
+                utter.lang = 'ka-GE';
+            }
+            
             speechSynthesis.speak(utter);
         }
 

@@ -448,7 +448,23 @@
             else switchTab('alphabet');
 
 
-            window.addEventListener('hashchange', () => {
+                    window.addEventListener('popstate', (e) => {
+            isClosingProgrammatically = true;
+            
+            const wordModal = document.getElementById('word-modal');
+            if (wordModal && !wordModal.classList.contains('hidden')) {
+                closeModal();
+            }
+            
+            const practiceModal = document.getElementById('practice-modal');
+            if (practiceModal && !practiceModal.classList.contains('hidden')) {
+                endPractice();
+            }
+            
+            isClosingProgrammatically = false;
+        });
+
+        window.addEventListener('hashchange', () => {
                 if (tabSwitchGuard) return;
                 const h = window.location.hash.replace('#', '');
                 if (h && VALID_TABS.includes(h)) switchTab(h);
@@ -486,6 +502,25 @@
 
 
 
+
+                // One-time listener to unlock iOS speech synthesis and audio HTML element
+        function unlockIosAudio() {
+            if (typeof speechSynthesis !== 'undefined') {
+                try {
+                    const utterance = new SpeechSynthesisUtterance('');
+                    speechSynthesis.speak(utterance);
+                } catch(e) {}
+            }
+            if (typeof AUDIO_PLAYER !== 'undefined' && AUDIO_PLAYER) {
+                AUDIO_PLAYER.play().then(() => {
+                    AUDIO_PLAYER.pause();
+                }).catch(() => {});
+            }
+            document.removeEventListener('touchstart', unlockIosAudio);
+            document.removeEventListener('click', unlockIosAudio);
+        }
+        document.addEventListener('touchstart', unlockIosAudio);
+        document.addEventListener('click', unlockIosAudio);
 
         document.addEventListener('DOMContentLoaded', init);
     

@@ -18,6 +18,8 @@ const filesToCopy = [
     'sw.js',
     'words.json',
     'grammar.json',
+    'course.json',
+    'notifications.json',
     'manifest.json',
     'favicon.ico'
 ];
@@ -32,6 +34,7 @@ const foldersToCopy = [
     'icons',
     'fa',
     'audio',
+    'assets',
     'api'
 ];
 

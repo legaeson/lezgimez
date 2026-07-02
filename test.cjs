@@ -124,7 +124,7 @@ function checkData() {
 }
 
 function checkBuildFiles() {
-  ['index.html', 'output.css', 'sw.js', 'words.json', 'grammar.json', 'manifest.json', 'robots.txt', 'sitemap.xml', 'favicon.ico'].forEach(assertExists);
+  ['index.html', 'output.css', 'sw.js', 'words.json', 'grammar.json', 'course.json', 'notifications.json', 'manifest.json', 'robots.txt', 'sitemap.xml', 'favicon.ico'].forEach(assertExists);
   assert(!fs.existsSync('__pycache__'), '__pycache__ must not be shipped');
   assert(!read('input.css').includes('rounded: 4px'), 'Invalid CSS property rounded must not be used');
 }

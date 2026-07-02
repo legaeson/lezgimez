@@ -100,6 +100,11 @@
 
         function showFlashcard() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
 
@@ -272,6 +277,12 @@
         }
         function showQuizQuestion() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
+            const modal_el = document.getElementById('practice-modal'); // Keep original variable binding
             const content = document.getElementById('practice-content');
             const w = practiceState.words[practiceState.idx];
             content.innerHTML = ''; // Очищаем контент
@@ -495,13 +506,18 @@
 
         function endPractice() {
             const modal = document.getElementById('practice-modal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            if (flashcardKeydownHandler) {
-                document.removeEventListener('keydown', flashcardKeydownHandler);
-                flashcardKeydownHandler = null;
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+                if (flashcardKeydownHandler) {
+                    document.removeEventListener('keydown', flashcardKeydownHandler);
+                    flashcardKeydownHandler = null;
+                }
+                renderWords(); // Refresh dictionary list
+                if (!isClosingProgrammatically && history.state && history.state.modalOpen) {
+                    history.back();
+                }
             }
-            renderWords(); // Refresh dictionary list
         }
         function startPairs() {
             const pool = practiceCategory === 'all' ? WORDS : WORDS.filter(w => w.cat === practiceCategory);
@@ -522,6 +538,11 @@
         }
         function showPairsGame() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
 
@@ -702,6 +723,11 @@
         }
         function showOddWordQuestion() {
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             const q = practiceState.questions[practiceState.idx];
             content.innerHTML = '';

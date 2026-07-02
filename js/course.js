@@ -18,7 +18,7 @@
             localStorage.setItem('lezgi_course_progress', JSON.stringify(COURSE_PROGRESS));
         }
 
-        function isUnitUnlocked(unitId) { return true;
+        function isUnitUnlocked(unitId) {
             if (!COURSE || COURSE.length === 0) return false;
             // First unit of first module is always unlocked
             const allUnits = [];
@@ -173,7 +173,7 @@
         // ==================== COURSE EXERCISE ENGINE ====================
 
         function startCourseExercises(unit) {
-            let exercises = [...unit.exercises];
+            let exercises = [...unit.exercises].filter(e => e.type !== 'listening');
             
             // Add translation exercises based on flashcards
             const vocab = exercises.filter(e => e.type === 'flashcard' && e.lz && e.ru);
@@ -181,7 +181,7 @@
                 // Add 1 random Ru -> Lz
                 const shuffled1 = [...vocab].sort(() => 0.5 - Math.random());
                 shuffled1.slice(0, 1).forEach(v => {
-                    exercises.splice(exercises.length - 1, 0, {
+                    exercises.push({
                         type: 'translate',
                         from: 'ru',
                         text: v.ru,
@@ -192,7 +192,7 @@
                 // Add 2 random Lz -> Ru (Reverse translate as requested)
                 const shuffled2 = [...vocab].sort(() => 0.5 - Math.random());
                 shuffled2.slice(0, 2).forEach(v => {
-                    exercises.splice(exercises.length - 1, 0, {
+                    exercises.push({
                         type: 'translate',
                         from: 'lz',
                         text: v.lz,
@@ -201,12 +201,13 @@
                 });
             }
 
+            const scoreableCount = exercises.filter(e => e.type !== 'flashcard' && !(e.type === 'listening' && (!e.options || e.options.length === 0) && !e.question)).length;
             courseExState = {
                 unit: unit,
                 exercises: exercises,
                 idx: 0,
                 score: 0,
-                total: exercises.length,
+                total: scoreableCount > 0 ? scoreableCount : exercises.length,
                 answers: []
             };
             showCourseExercise();
@@ -219,6 +220,11 @@
             }
 
             const modal = document.getElementById('practice-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('practice-content');
             content.innerHTML = '';
             content.classList.add('flex', 'flex-col');
@@ -547,7 +553,7 @@
             const btn = document.createElement('button');
             btn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-3xl text-base mt-6 transition-colors';
             btn.textContent = 'Понятно →';
-            btn.addEventListener('click', () => courseNextExercise(true));
+            btn.addEventListener('click', () => courseNextExercise(null));
 
             card.appendChild(btn);
             body.appendChild(card);
@@ -1076,7 +1082,7 @@
                     answered = true;
 
                     if (isOnlyContinue) {
-                        courseNextExercise(true);
+                        courseNextExercise(null);
                         return;
                     }
 
@@ -1113,6 +1119,15 @@
                     }
                 });
                 playBtnWrap.appendChild(playBtn);
+                
+                if (ex.audioUrl === 'placeholder.mp3') {
+                    const ttsWarning = document.createElement('div');
+                    ttsWarning.className = 'text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100 font-medium text-center';
+                    ttsWarning.textContent = '🔊 Автоматическая озвучка (может быть неточной)';
+                    playBtnWrap.className = 'flex flex-col items-center mb-8 mt-4';
+                    playBtnWrap.appendChild(ttsWarning);
+                }
+                
                 wrap.append(playBtnWrap);
             }
 
@@ -1238,9 +1253,11 @@
             const pct = Math.round((score / total) * 100);
             const unitId = courseExState.unit.id;
 
-            // Save progress
-            if (!COURSE_PROGRESS.completedUnits.includes(unitId)) {
-                COURSE_PROGRESS.completedUnits.push(unitId);
+            // Save progress only if score is at least 70%
+            if (pct >= 70) {
+                if (!COURSE_PROGRESS.completedUnits.includes(unitId)) {
+                    COURSE_PROGRESS.completedUnits.push(unitId);
+                }
             }
             COURSE_PROGRESS.scores[unitId] = Math.max(pct, COURSE_PROGRESS.scores[unitId] || 0);
             saveCourseProgress();
@@ -1288,7 +1305,7 @@
 
                 const sub = document.createElement('p');
                 sub.className = 'text-slate-500 text-sm mt-2 mb-6 max-w-[280px]';
-                sub.textContent = 'Юнит засчитан, но попробуйте ещё раз для лучшего результата!';
+                sub.textContent = 'Попробуйте ещё раз, чтобы набрать 70% и открыть следующий юнит!';
 
                 resWrap.append(scoreCircle, title, sub);
             }
@@ -1304,7 +1321,7 @@
             const currentIdx = allUnits.findIndex(u => u.id === unitId);
             const nextUnit = (currentIdx !== -1 && currentIdx < allUnits.length - 1) ? allUnits[currentIdx + 1] : null;
 
-            if (nextUnit) {
+            if (nextUnit && (pct >= 70 || isUnitUnlocked(nextUnit.id))) {
                 const nextBtn = document.createElement('button');
                 nextBtn.className = 'w-full py-4 bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-3xl text-sm transition-colors shadow-md shadow-emerald-100';
                 nextBtn.textContent = 'Продолжить';

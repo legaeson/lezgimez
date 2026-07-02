@@ -15,6 +15,7 @@ const CRITICAL_ASSETS = [
   './output.css',
   './words.json',
   './grammar.json',
+  './course.json',
   './notifications.json',
   './robots.txt',
   './sitemap.xml',

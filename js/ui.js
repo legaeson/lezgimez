@@ -493,6 +493,11 @@
 
         function showAlphabetModal(item) {
             const modal = document.getElementById('word-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('modal-content');
             content.innerHTML = '';
 
@@ -810,6 +815,11 @@
             if (!word) return;
 
             const modal = document.getElementById('word-modal');
+            const isAlreadyOpen = !modal.classList.contains('hidden');
+            if (!isAlreadyOpen) {
+                history.pushState({ modalOpen: true }, '');
+            }
+
             const content = document.getElementById('modal-content');
 
             content.innerHTML = '';
@@ -828,10 +838,25 @@
             catSpan.className = 'uppercase tracking-[1.5px] text-emerald-600 text-sm font-bold';
             catSpan.textContent = word.cat;
             catRow.append(catSpan);
+            
+            const h1Row = document.createElement('div');
+            h1Row.className = 'flex items-center gap-3 mt-1';
             const h1 = document.createElement('div');
-            h1.className = 'text-[42px] leading-none font-bold text-emerald-900 mt-1 lezgin-text';
+            h1.className = 'text-[42px] leading-none font-bold text-emerald-900 lezgin-text';
             h1.textContent = word.lz;
-            left.append(catRow, h1);
+            
+            const playBtn = document.createElement('button');
+            playBtn.className = 'w-10 h-10 flex flex-shrink-0 items-center justify-center bg-emerald-500 text-white active:bg-emerald-600 rounded-full text-base transition-transform active:scale-95 shadow-sm';
+            playBtn.innerHTML = '<i class="fa-solid fa-volume-up"></i>';
+            playBtn.title = 'Прослушать';
+            playBtn.addEventListener('click', () => {
+                if (typeof speakWord === 'function') {
+                    speakWord(word.lz);
+                }
+            });
+            h1Row.append(h1, playBtn);
+            
+            left.append(catRow, h1Row);
 
             const right = document.createElement('div');
             right.className = 'flex items-center gap-3';
@@ -1073,10 +1098,15 @@
 
         function closeModal() {
             const modal = document.getElementById('word-modal');
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            if (lastDialogTrigger && typeof lastDialogTrigger.focus === 'function') {
-                lastDialogTrigger.focus({ preventScroll: true });
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+                if (lastDialogTrigger && typeof lastDialogTrigger.focus === 'function') {
+                    lastDialogTrigger.focus({ preventScroll: true });
+                }
+                if (!isClosingProgrammatically && history.state && history.state.modalOpen) {
+                    history.back();
+                }
             }
         }
 

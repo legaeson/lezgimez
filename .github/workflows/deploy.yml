@@ -48,6 +48,8 @@ jobs:
           cp sw.js dist/
           cp words.json dist/
           cp grammar.json dist/
+          cp course.json dist/
+          cp notifications.json dist/
           cp manifest.json dist/
           cp robots.txt dist/
           cp sitemap.xml dist/
@@ -56,6 +58,7 @@ jobs:
           cp -r icons dist/
           cp -r fa dist/
           cp -r audio dist/
+          cp -r assets dist/ || true
           cp -r api dist/ || true
           cp -r netlify dist/ || true
           cp netlify.toml dist/ || true
